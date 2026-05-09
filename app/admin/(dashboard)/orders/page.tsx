@@ -92,7 +92,11 @@ export default function AdminOrdersPage() {
           <tbody>
             {orders.map((o) => (
               <tr key={o._id} className="border-t border-white/5">
-                <td className="px-4 py-3 font-mono text-xs">{o.orderNumber}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  <Link href={`/admin/orders/${o._id}`} className="text-awok-gold hover:underline">
+                    {o.orderNumber}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 capitalize">{o.orderStatus}</td>
                 <td className="px-4 py-3">{o.paymentStatus}</td>
                 <td className="px-4 py-3 text-xs text-awok-muted">{o.paymentMode}</td>
@@ -111,6 +115,9 @@ export default function AdminOrdersPage() {
                         </option>
                       ))}
                     </select>
+                    <Link href={`/admin/orders/${o._id}`} className="text-xs text-awok-gold hover:underline">
+                      View detail
+                    </Link>
                     <Link href={`/admin/orders/${o._id}/print`} className="text-xs text-awok-gold hover:underline">
                       Print ticket
                     </Link>

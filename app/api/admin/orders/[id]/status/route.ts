@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Order } from "@/models/Order";
+import { Restaurant } from "@/models/Restaurant";
 import { sendOrderStatusEmailIfNeeded } from "@/lib/email/send-status-email";
 
 const bodySchema = z.object({
@@ -23,8 +25,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     await connectDB();
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const restaurant = await Restaurant.findOne({ slug }).lean();
     const existing = await Order.findById(params.id).lean();
-    const previousStatus = (existing?.orderStatus as string) ?? "";
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (restaurant && String(existing.restaurant) !== String(restaurant._id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const previousStatus = (existing.orderStatus as string) ?? "";
     const order = await Order.findByIdAndUpdate(
       params.id,
       { orderStatus: parsed.data.orderStatus },
