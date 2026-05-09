@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
 
   try {
     await connectDB();
-    const restaurant = await Restaurant.findOne({ slug: "a-wok" });
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const restaurant = await Restaurant.findOne({ slug });
     const filter: Record<string, unknown> = {};
     if (restaurant) filter.restaurant = restaurant._id;
     if (orderStatus) filter.orderStatus = orderStatus;

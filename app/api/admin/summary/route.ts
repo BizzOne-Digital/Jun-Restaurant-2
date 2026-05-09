@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
 import { PayoutLedger } from "@/models/PayoutLedger";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
 import { User } from "@/models/User";
 
@@ -15,14 +16,15 @@ function startOfToday() {
   return d;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const { error, session } = await requireAdmin();
   if (error || !session) return error!;
 
   try {
     await connectDB();
     const today = startOfToday();
-    const restaurant = await Restaurant.findOne({ slug: "a-wok" });
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const restaurant = await Restaurant.findOne({ slug });
     const rid = restaurant?._id;
 
     const todayOrders = rid

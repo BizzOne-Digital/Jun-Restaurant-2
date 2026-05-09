@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { connectDB } from "@/lib/mongodb";
 import { getStripe } from "@/lib/stripe";
-import { recomputePopularItems } from "@/lib/recompute-popular";
-import { MenuItem } from "@/models/MenuItem";
-import { Order } from "@/models/Order";
-import { PayoutLedger } from "@/models/PayoutLedger";
-import { sendPaidOrderEmails } from "@/lib/email/send-order-emails";
+import { syncPaidOrderFromPaymentIntent, syncPaidOrderFromStripeCheckout } from "@/lib/stripe-order-payment-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +10,7 @@ export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature");
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!sig || !secret) {
+    console.error("[stripe webhook] STRIPE_WEBHOOK_SECRET or stripe-signature missing");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
@@ -23,80 +19,38 @@ export async function POST(req: Request) {
     const stripe = getStripe();
     event = stripe.webhooks.constructEvent(rawBody, sig, secret);
   } catch (err) {
-    console.error("Webhook signature verification failed", err);
+    console.error("[stripe webhook] signature verification failed", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const orderId = session.metadata?.orderId ?? session.client_reference_id;
-    if (!orderId) {
-      return NextResponse.json({ received: true });
-    }
+  console.info("[stripe webhook] event", event.type, "id=", event.id);
 
-    try {
-      await connectDB();
-      const order = await Order.findById(orderId);
-      if (!order) {
-        console.error("Order not found for webhook", orderId);
-        return NextResponse.json({ received: true });
-      }
-
-      const pi =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : session.payment_intent?.id ?? "";
-
-      const alreadyPaid = order.paymentStatus === "paid";
-
-      if (!alreadyPaid) {
-        order.paymentStatus = "paid";
-        order.stripeCheckoutSessionId = session.id;
-        order.stripePaymentIntentId = pi;
-        await order.save();
-
-        for (const line of order.items) {
-          await MenuItem.updateOne({ _id: line.menuItem }, { $inc: { purchaseCount: line.quantity } });
-        }
-        await recomputePopularItems();
-
-        const scenario =
-          order.paymentMode === "stripe_connect_split"
-            ? "instant_connect_split"
-            : "platform_collect_then_later_payout";
-
-        const ledgerStatus = order.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
-
-        await PayoutLedger.updateOne(
-          { order: order._id },
-          {
-            $set: {
-              restaurant: order.restaurant,
-              order: order._id,
-              totalCollected: order.total,
-              commissionAmount: order.commissionAmount,
-              restaurantPayoutAmount: order.restaurantPayoutAmount,
-              status: ledgerStatus,
-              stripeTransferId: "",
-              payoutScenario: scenario,
-            },
-          },
-          { upsert: true }
+  try {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const sync = await syncPaidOrderFromStripeCheckout(session);
+      if (!sync.ok) {
+        console.warn("[stripe webhook] checkout sync result", event.type, session.id, sync.error);
+      } else {
+        console.info(
+          "[stripe webhook] checkout sync ok",
+          session.id,
+          "db_payment=",
+          sync.paymentStatus,
+          "order=",
+          sync.orderNumber
         );
       }
-
-      try {
-        await sendPaidOrderEmails(order._id.toString(), {
-          stripeSessionId: session.id,
-          stripePaymentIntentId: pi || order.stripePaymentIntentId || undefined,
-        });
-      } catch (e) {
-        console.error("[email] sendPaidOrderEmails from webhook", e);
-      }
-    } catch (e) {
-      console.error(e);
-      return NextResponse.json({ error: "Webhook handler error" }, { status: 500 });
+    } else if (event.type === "payment_intent.succeeded") {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      await syncPaidOrderFromPaymentIntent(pi);
+    } else if (event.type === "payment_intent.payment_failed") {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      console.warn("[stripe webhook] payment_intent.payment_failed", pi.id, pi.last_payment_error?.message);
     }
+  } catch (e) {
+    console.error("[stripe webhook] handler error", event.type, e);
+    return NextResponse.json({ error: "Webhook handler error" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

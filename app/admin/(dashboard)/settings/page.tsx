@@ -132,10 +132,11 @@ export default function AdminSettingsPage() {
       <form key={`email-${emailBrandName}-${emailLogo}-${orderEmail}-${pickupMins}`} onSubmit={saveSiteEmail} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-6">
         <h2 className="text-lg font-semibold">Order emails &amp; branding</h2>
         <p className="text-xs leading-relaxed text-awok-muted">
-          Used for Mailgun / Resend / SMTP templates (customer confirmation, kitchen new order, status updates). Paths
-          like <code className="text-awok-gold">/uploads/…</code> only work in inboxes after you deploy a public{" "}
-          <code className="text-awok-gold">https://</code> site — for production email reliability, prefer an absolute
-          image URL (CDN, S3, Vercel Blob, etc.).
+          Used for Mailgun / Resend / SMTP templates (customer confirmation, kitchen new order, status updates). For the
+          logo in emails, set <code className="text-awok-gold">ORDER_EMAIL_LOGO_URL</code> in Vercel to a full{" "}
+          <code className="text-awok-gold">https://</code> URL (e.g. Cloudinary) — it overrides the logo URL below when
+          set. Paths like <code className="text-awok-gold">/uploads/…</code> only work in inboxes on a live public
+          domain; CDN URLs are best for production.
         </p>
         <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">Display name in emails</label>
         <input

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,8 @@ export async function PATCH(req: Request) {
 
   try {
     await connectDB();
-    const existing = await Restaurant.findOne({ slug: "a-wok" });
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const existing = await Restaurant.findOne({ slug });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     if (parsed.data.paymentMode === "stripe_connect_split") {
@@ -47,7 +49,7 @@ export async function PATCH(req: Request) {
       update.hasSubmittedVoidCheckAndId = parsed.data.hasSubmittedVoidCheckAndId;
     }
 
-    const restaurant = await Restaurant.findOneAndUpdate({ slug: "a-wok" }, update, { new: true }).lean();
+    const restaurant = await Restaurant.findOneAndUpdate({ slug }, update, { new: true }).lean();
     return NextResponse.json({ restaurant });
   } catch (e) {
     console.error(e);

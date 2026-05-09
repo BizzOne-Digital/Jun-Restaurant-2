@@ -1,0 +1,261 @@
+import type Stripe from "stripe";
+import { connectDB } from "@/lib/mongodb";
+import { getStripe } from "@/lib/stripe";
+import { recomputePopularItems } from "@/lib/recompute-popular";
+import { MenuItem } from "@/models/MenuItem";
+import { Order } from "@/models/Order";
+import { PayoutLedger } from "@/models/PayoutLedger";
+import { sendPaidOrderEmails } from "@/lib/email/send-order-emails";
+
+export type CheckoutSyncResult = {
+  ok: boolean;
+  paymentStatus?: string;
+  orderNumber?: string;
+  /** Stripe session payment_status when order row not yet paid */
+  stripePaymentStatus?: string;
+  error?: string;
+};
+
+async function retrieveCheckoutSession(
+  stripe: ReturnType<typeof getStripe>,
+  sessionId: string
+): Promise<Stripe.Checkout.Session | null> {
+  try {
+    return await stripe.checkout.sessions.retrieve(sessionId, { expand: ["payment_intent"] });
+  } catch (e) {
+    console.error("[stripe] checkout.sessions.retrieve failed", sessionId, e);
+    return null;
+  }
+}
+
+function paymentIntentId(session: Stripe.Checkout.Session): string {
+  const pi = session.payment_intent;
+  if (typeof pi === "string") return pi;
+  return pi?.id ?? "";
+}
+
+/**
+ * Marks order paid (once), updates ledger & popularity, sends emails — same as webhook path.
+ * Call with Checkout Session id or hydrated Session from webhook.
+ */
+export async function syncPaidOrderFromStripeCheckout(
+  sessionOrId: string | Stripe.Checkout.Session
+): Promise<CheckoutSyncResult> {
+  await connectDB();
+  const stripe = getStripe();
+  const session =
+    typeof sessionOrId === "string"
+      ? await retrieveCheckoutSession(stripe, sessionOrId)
+      : sessionOrId;
+
+  if (!session || !session.id) {
+    return { ok: false, error: "session_not_found" };
+  }
+
+  const sessionId = session.id;
+  const orderId = session.metadata?.orderId ?? session.client_reference_id;
+  if (!orderId) {
+    console.warn("[stripe] checkout session missing orderId metadata", sessionId);
+    return { ok: false, error: "missing_order_metadata" };
+  }
+
+  let order = await Order.findById(orderId);
+  if (!order) {
+    order = await Order.findOne({ stripeCheckoutSessionId: sessionId });
+  }
+  if (!order) {
+    console.warn("[stripe] order not found for checkout", sessionId, orderId);
+    return { ok: false, error: "order_not_found" };
+  }
+
+  const pi = paymentIntentId(session);
+
+  if (!order.stripeCheckoutSessionId) {
+    order.stripeCheckoutSessionId = sessionId;
+    await order.save();
+  }
+
+  const stripePaid = session.payment_status === "paid";
+
+  if (order.paymentStatus === "paid") {
+    try {
+      await sendPaidOrderEmails(order._id.toString(), {
+        stripeSessionId: sessionId,
+        stripePaymentIntentId: pi || order.stripePaymentIntentId || undefined,
+      });
+    } catch (e) {
+      console.error("[email] sendPaidOrderEmails (already-paid path)", e);
+    }
+    return {
+      ok: true,
+      paymentStatus: "paid",
+      orderNumber: order.orderNumber,
+      stripePaymentStatus: session.payment_status ?? undefined,
+    };
+  }
+
+  if (!stripePaid) {
+    console.info(
+      "[stripe] checkout session not paid yet",
+      sessionId,
+      "stripe_payment_status=",
+      session.payment_status,
+      "db_payment=",
+      order.paymentStatus
+    );
+    return {
+      ok: true,
+      paymentStatus: order.paymentStatus,
+      orderNumber: order.orderNumber,
+      stripePaymentStatus: session.payment_status ?? undefined,
+    };
+  }
+
+  const updated = await Order.findOneAndUpdate(
+    { _id: order._id, paymentStatus: "pending" },
+    {
+      $set: {
+        paymentStatus: "paid",
+        stripeCheckoutSessionId: sessionId,
+        stripePaymentIntentId: pi || order.stripePaymentIntentId,
+      },
+    },
+    { new: true }
+  );
+
+  if (!updated) {
+    const again = await Order.findById(order._id);
+    if (again?.paymentStatus === "paid") {
+      try {
+        await sendPaidOrderEmails(again._id.toString(), {
+          stripeSessionId: sessionId,
+          stripePaymentIntentId: pi || again.stripePaymentIntentId || undefined,
+        });
+      } catch (e) {
+        console.error("[email] sendPaidOrderEmails (race already-paid)", e);
+      }
+      return {
+        ok: true,
+        paymentStatus: "paid",
+        orderNumber: again.orderNumber,
+        stripePaymentStatus: session.payment_status ?? undefined,
+      };
+    }
+    return {
+      ok: true,
+      paymentStatus: again?.paymentStatus ?? "unknown",
+      orderNumber: again?.orderNumber,
+      stripePaymentStatus: session.payment_status ?? undefined,
+    };
+  }
+
+  console.info("[stripe] order marked paid", updated.orderNumber, sessionId);
+
+  for (const line of updated.items) {
+    await MenuItem.updateOne({ _id: line.menuItem }, { $inc: { purchaseCount: line.quantity } });
+  }
+  await recomputePopularItems();
+
+  const scenario =
+    updated.paymentMode === "stripe_connect_split" ? "instant_connect_split" : "platform_collect_then_later_payout";
+  const ledgerStatus = updated.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
+
+  await PayoutLedger.updateOne(
+    { order: updated._id },
+    {
+      $set: {
+        restaurant: updated.restaurant,
+        order: updated._id,
+        totalCollected: updated.total,
+        commissionAmount: updated.commissionAmount,
+        restaurantPayoutAmount: updated.restaurantPayoutAmount,
+        status: ledgerStatus,
+        stripeTransferId: "",
+        payoutScenario: scenario,
+      },
+    },
+    { upsert: true }
+  );
+
+  try {
+    await sendPaidOrderEmails(updated._id.toString(), {
+      stripeSessionId: sessionId,
+      stripePaymentIntentId: pi || undefined,
+    });
+  } catch (e) {
+    console.error("[email] sendPaidOrderEmails from checkout sync", e);
+  }
+
+  return {
+    ok: true,
+    paymentStatus: "paid",
+    orderNumber: updated.orderNumber,
+    stripePaymentStatus: session.payment_status ?? undefined,
+  };
+}
+
+/**
+ * Fallback when only PaymentIntent webhooks fire (metadata must include orderId from Checkout).
+ */
+export async function syncPaidOrderFromPaymentIntent(pi: Stripe.PaymentIntent): Promise<void> {
+  const orderId = pi.metadata?.orderId;
+  if (!orderId) {
+    console.info("[stripe] payment_intent.succeeded without orderId metadata — skipping", pi.id);
+    return;
+  }
+
+  await connectDB();
+  const updated = await Order.findOneAndUpdate(
+    { _id: orderId, paymentStatus: "pending" },
+    {
+      $set: {
+        paymentStatus: "paid",
+        stripePaymentIntentId: pi.id,
+      },
+    },
+    { new: true }
+  );
+
+  if (!updated) {
+    console.info("[stripe] payment_intent.succeeded noop (already paid or missing)", pi.id, orderId);
+    return;
+  }
+
+  console.info("[stripe] order marked paid via PaymentIntent", updated.orderNumber, pi.id);
+
+  for (const line of updated.items) {
+    await MenuItem.updateOne({ _id: line.menuItem }, { $inc: { purchaseCount: line.quantity } });
+  }
+  await recomputePopularItems();
+
+  const scenario =
+    updated.paymentMode === "stripe_connect_split" ? "instant_connect_split" : "platform_collect_then_later_payout";
+  const ledgerStatus = updated.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
+
+  await PayoutLedger.updateOne(
+    { order: updated._id },
+    {
+      $set: {
+        restaurant: updated.restaurant,
+        order: updated._id,
+        totalCollected: updated.total,
+        commissionAmount: updated.commissionAmount,
+        restaurantPayoutAmount: updated.restaurantPayoutAmount,
+        status: ledgerStatus,
+        stripeTransferId: "",
+        payoutScenario: scenario,
+      },
+    },
+    { upsert: true }
+  );
+
+  const sessionId = updated.stripeCheckoutSessionId || "";
+  try {
+    await sendPaidOrderEmails(updated._id.toString(), {
+      stripeSessionId: sessionId || "unknown",
+      stripePaymentIntentId: pi.id,
+    });
+  } catch (e) {
+    console.error("[email] sendPaidOrderEmails from PI sync", e);
+  }
+}

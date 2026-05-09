@@ -35,15 +35,21 @@ export async function loadRestaurantEmailContext(siteOrigin: string): Promise<Re
   const site =
     (await SiteSetting.findOne({ key: "default" }).lean()) ??
     (await SiteSetting.findOne().sort({ updatedAt: -1 }).lean());
-  const restaurant = await Restaurant.findOne({ slug: "a-wok" }).lean();
+  const slug = process.env.RESTAURANT_SLUG?.trim() || "a-wok";
+  const restaurant = await Restaurant.findOne({ slug }).lean();
 
   const restaurantName =
     (site?.restaurantName && String(site.restaurantName).trim()) ||
     (restaurant?.name && String(restaurant.name).trim()) ||
     RESTAURANT_DISPLAY_NAME;
 
-  const rawLogo = (site?.logo && String(site.logo).trim()) || (restaurant?.logoUrl && String(restaurant.logoUrl).trim()) || "";
-  const logoUrl = emailSafeLogoUrl(rawLogo, siteOrigin);
+  /** Vercel/production: full https URL (e.g. Cloudinary) — takes priority over DB logo for inbox-safe images. */
+  const envLogoUrl = process.env.ORDER_EMAIL_LOGO_URL?.trim() || process.env.RESTAURANT_EMAIL_LOGO_URL?.trim() || "";
+  const rawLogoFromDb =
+    (site?.logo && String(site.logo).trim()) || (restaurant?.logoUrl && String(restaurant.logoUrl).trim()) || "";
+  const logoFromEnv = envLogoUrl ? emailSafeLogoUrl(envLogoUrl, siteOrigin) : null;
+  const logoFromDb = rawLogoFromDb ? emailSafeLogoUrl(rawLogoFromDb, siteOrigin) : null;
+  const logoUrl = logoFromEnv ?? logoFromDb;
 
   const pickupPrepareMinutes = (() => {
     const n = site?.pickupPrepareTimeMinutes;

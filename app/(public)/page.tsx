@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { FeaturedCard, HeroCopyBlock, SectionReveal, WhyCard } from "@/components/home-hero-motion";
 import { HeroVisual } from "@/components/hero-visual";
 import { connectDB } from "@/lib/mongodb";
+import { resolveRestaurantSlugFromHeadersGetter } from "@/lib/restaurant-resolve";
 import { MenuItem } from "@/models/MenuItem";
 import { Restaurant } from "@/models/Restaurant";
 import { formatCents } from "@/lib/utils";
@@ -10,6 +12,8 @@ import { formatCents } from "@/lib/utils";
 async function getFeatured() {
   try {
     await connectDB();
+    const h = headers();
+    const slug = resolveRestaurantSlugFromHeadersGetter((name) => h.get(name));
     let items = await MenuItem.find({ isPopular: true, isAvailable: true })
       .sort({ name: 1 })
       .limit(8)
@@ -20,7 +24,7 @@ async function getFeatured() {
         .limit(8)
         .lean();
     }
-    const restaurant = await Restaurant.findOne({ slug: "a-wok" }).lean();
+    const restaurant = await Restaurant.findOne({ slug }).lean();
     return { items, restaurant };
   } catch {
     return { items: [], restaurant: null };

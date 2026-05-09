@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
 import { User } from "@/models/User";
 
@@ -12,7 +13,7 @@ const patchSchema = z.object({
   isBlocked: z.boolean(),
 });
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   const { error, session } = await requireAdmin();
   if (error || !session) return error!;
 
@@ -20,7 +21,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     await connectDB();
     const user = await User.findById(params.id).select("-passwordHash").lean();
     if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const restaurant = await Restaurant.findOne({ slug: "a-wok" });
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const restaurant = await Restaurant.findOne({ slug });
     const orders = await Order.find({
       customer: user._id,
       ...(restaurant ? { restaurant: restaurant._id } : {}),

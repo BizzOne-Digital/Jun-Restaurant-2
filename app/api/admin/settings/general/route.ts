@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,8 @@ export async function PATCH(req: Request) {
 
   try {
     await connectDB();
-    const restaurant = await Restaurant.findOneAndUpdate({ slug: "a-wok" }, parsed.data, {
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const restaurant = await Restaurant.findOneAndUpdate({ slug }, parsed.data, {
       new: true,
     }).lean();
     if (!restaurant) return NextResponse.json({ error: "Not found" }, { status: 404 });

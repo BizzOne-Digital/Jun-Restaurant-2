@@ -18,9 +18,12 @@ import {
   requiresProteinChoiceMenuItem,
 } from "@/lib/protein-choice";
 import { checkoutBodySchema } from "@/lib/validators/checkout";
+import { getPublicSiteUrlFromRequest } from "@/lib/get-public-site-url";
+import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
 import { Restaurant } from "@/models/Restaurant";
+import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +42,10 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
-    const restaurant = await Restaurant.findOne({ slug: "a-wok" });
+    const slug = resolveRestaurantSlugFromRequest(req);
+    const restaurant = await Restaurant.findOne({ slug });
     if (!restaurant || !restaurant.isAcceptingOrders) {
+      console.warn("[checkout] restaurant not accepting or missing slug=", slug);
       return NextResponse.json({ error: "Restaurant is not accepting orders" }, { status: 400 });
     }
 
@@ -152,7 +157,20 @@ export async function POST(req: Request) {
     });
 
     const stripe = getStripe();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+    const siteUrl = getPublicSiteUrlFromRequest(req);
+    const siteHost = (() => {
+      try {
+        return new URL(siteUrl).host;
+      } catch {
+        return "";
+      }
+    })();
+
+    let customerName = body.guestInfo?.name?.trim() ?? "";
+    if (session?.user?.id) {
+      const u = await User.findById(session.user.id).lean();
+      customerName = ((u?.name as string) || session.user.email || "").trim();
+    }
 
     const lineItems = orderItems.map((oi) => {
       const descParts: string[] = [];
@@ -212,12 +230,20 @@ export async function POST(req: Request) {
     const customerEmail =
       session?.user?.email ?? body.guestInfo?.email ?? undefined;
 
-    const metadata = {
+    const metadata: Record<string, string> = {
       orderId: order._id.toString(),
       restaurantId: restaurant._id.toString(),
+      restaurant_slug: String(restaurant.slug),
+      restaurant_name: String(restaurant.name),
+      site_domain: siteHost || siteUrl.replace(/^https?:\/\//, "").split("/")[0] || "",
+      order_number: orderNumber,
+      customer_email: customerEmail ?? "",
+      customer_name: customerName,
       customerId: session?.user?.id ?? "guest",
       paymentMode,
     };
+
+    const paymentIntentDescription = `${restaurant.name} online order · #${orderNumber}`;
 
     const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
@@ -235,8 +261,24 @@ export async function POST(req: Request) {
         transfer_data: {
           destination: restaurant.stripeConnectedAccountId,
         },
+        description: paymentIntentDescription,
+        metadata: { ...metadata },
+      };
+    } else {
+      sessionParams.payment_intent_data = {
+        description: paymentIntentDescription,
+        metadata: { ...metadata },
       };
     }
+
+    console.info(
+      "[checkout] creating Stripe session order=",
+      orderNumber,
+      "slug=",
+      slug,
+      "success_url=",
+      sessionParams.success_url?.slice(0, 80)
+    );
 
     const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
 

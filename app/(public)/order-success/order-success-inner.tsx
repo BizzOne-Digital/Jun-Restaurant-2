@@ -28,11 +28,12 @@ export default function OrderSuccessInner() {
         setStatus("ready");
         return;
       }
-      if (tries > 25) {
+      // Webhook can lag; server also syncs with Stripe on each poll — allow ~90s total
+      if (tries > 45) {
         setStatus("timeout");
         return;
       }
-      setTimeout(tick, 1200);
+      setTimeout(tick, 2000);
     };
     tick();
     return () => {
