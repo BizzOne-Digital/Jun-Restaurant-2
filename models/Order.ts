@@ -36,6 +36,15 @@ const deliveryAddressSchema = new Schema(
   { _id: false }
 );
 
+const statusEmailLogEntrySchema = new Schema(
+  {
+    status: { type: String, required: true },
+    sentAt: { type: Date, required: true },
+    recipient: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const orderSchema = new Schema(
   {
     orderNumber: { type: String, required: true, unique: true, index: true },
@@ -77,6 +86,20 @@ const orderSchema = new Schema(
     deliveryAddress: { type: deliveryAddressSchema, default: null },
     customerNotes: { type: String, default: "" },
     adminNotes: { type: String, default: "" },
+    confirmationEmailSent: { type: Boolean, default: false },
+    confirmationEmailSentAt: { type: Date, default: null },
+    confirmationEmailStatus: {
+      type: String,
+      enum: ["sent", "failed", "skipped"],
+      default: "skipped",
+    },
+    confirmationEmailError: { type: String, default: "" },
+    merchantNotificationEmailSent: { type: Boolean, default: false },
+    merchantNotificationEmailSentAt: { type: Date, default: null },
+    restaurantOrderEmailSent: { type: Boolean, default: false },
+    restaurantOrderEmailSentAt: { type: Date, default: null },
+    customerOrderConfirmationSentAt: { type: Date, default: null },
+    statusEmailLog: { type: [statusEmailLogEntrySchema], default: [] },
   },
   { timestamps: true }
 );

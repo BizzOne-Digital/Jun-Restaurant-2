@@ -6,6 +6,7 @@ import { recomputePopularItems } from "@/lib/recompute-popular";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
 import { PayoutLedger } from "@/models/PayoutLedger";
+import { sendPaidOrderEmails } from "@/lib/email/send-order-emails";
 
 export const dynamic = "force-dynamic";
 
@@ -40,48 +41,58 @@ export async function POST(req: Request) {
         console.error("Order not found for webhook", orderId);
         return NextResponse.json({ received: true });
       }
-      if (order.paymentStatus === "paid") {
-        return NextResponse.json({ received: true });
-      }
 
       const pi =
         typeof session.payment_intent === "string"
           ? session.payment_intent
           : session.payment_intent?.id ?? "";
 
-      order.paymentStatus = "paid";
-      order.stripeCheckoutSessionId = session.id;
-      order.stripePaymentIntentId = pi;
-      await order.save();
+      const alreadyPaid = order.paymentStatus === "paid";
 
-      for (const line of order.items) {
-        await MenuItem.updateOne({ _id: line.menuItem }, { $inc: { purchaseCount: line.quantity } });
-      }
-      await recomputePopularItems();
+      if (!alreadyPaid) {
+        order.paymentStatus = "paid";
+        order.stripeCheckoutSessionId = session.id;
+        order.stripePaymentIntentId = pi;
+        await order.save();
 
-      const scenario =
-        order.paymentMode === "stripe_connect_split"
-          ? "instant_connect_split"
-          : "platform_collect_then_later_payout";
+        for (const line of order.items) {
+          await MenuItem.updateOne({ _id: line.menuItem }, { $inc: { purchaseCount: line.quantity } });
+        }
+        await recomputePopularItems();
 
-      const ledgerStatus = order.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
+        const scenario =
+          order.paymentMode === "stripe_connect_split"
+            ? "instant_connect_split"
+            : "platform_collect_then_later_payout";
 
-      await PayoutLedger.updateOne(
-        { order: order._id },
-        {
-          $set: {
-            restaurant: order.restaurant,
-            order: order._id,
-            totalCollected: order.total,
-            commissionAmount: order.commissionAmount,
-            restaurantPayoutAmount: order.restaurantPayoutAmount,
-            status: ledgerStatus,
-            stripeTransferId: "",
-            payoutScenario: scenario,
+        const ledgerStatus = order.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
+
+        await PayoutLedger.updateOne(
+          { order: order._id },
+          {
+            $set: {
+              restaurant: order.restaurant,
+              order: order._id,
+              totalCollected: order.total,
+              commissionAmount: order.commissionAmount,
+              restaurantPayoutAmount: order.restaurantPayoutAmount,
+              status: ledgerStatus,
+              stripeTransferId: "",
+              payoutScenario: scenario,
+            },
           },
-        },
-        { upsert: true }
-      );
+          { upsert: true }
+        );
+      }
+
+      try {
+        await sendPaidOrderEmails(order._id.toString(), {
+          stripeSessionId: session.id,
+          stripePaymentIntentId: pi || order.stripePaymentIntentId || undefined,
+        });
+      } catch (e) {
+        console.error("[email] sendPaidOrderEmails from webhook", e);
+      }
     } catch (e) {
       console.error(e);
       return NextResponse.json({ error: "Webhook handler error" }, { status: 500 });

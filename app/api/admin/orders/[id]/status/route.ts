@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
+import { sendOrderStatusEmailIfNeeded } from "@/lib/email/send-status-email";
 
 const bodySchema = z.object({
   orderStatus: z.enum(["new", "accepted", "preparing", "ready", "completed", "cancelled"]),
@@ -22,12 +23,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     await connectDB();
+    const existing = await Order.findById(params.id).lean();
+    const previousStatus = (existing?.orderStatus as string) ?? "";
     const order = await Order.findByIdAndUpdate(
       params.id,
       { orderStatus: parsed.data.orderStatus },
       { new: true }
     ).lean();
     if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    await sendOrderStatusEmailIfNeeded(order, previousStatus);
     return NextResponse.json({ order });
   } catch (e) {
     console.error(e);

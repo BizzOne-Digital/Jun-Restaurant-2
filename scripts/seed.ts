@@ -10,6 +10,7 @@ import { Category } from "../models/Category";
 import { MenuItem } from "../models/MenuItem";
 import { Restaurant } from "../models/Restaurant";
 import { User } from "../models/User";
+import { SiteSetting } from "../models/SiteSetting";
 
 const c = (dollars: number) => Math.round(dollars * 100);
 
@@ -145,6 +146,18 @@ async function main() {
       commissionPercentage: 10,
       openingHours: OPENING,
       isAcceptingOrders: true,
+    },
+    { upsert: true, new: true }
+  );
+
+  await SiteSetting.findOneAndUpdate(
+    { key: "default" },
+    {
+      key: "default",
+      restaurantName: "A Wok",
+      email: "",
+      logo: "",
+      pickupPrepareTimeMinutes: 20,
     },
     { upsert: true, new: true }
   );
