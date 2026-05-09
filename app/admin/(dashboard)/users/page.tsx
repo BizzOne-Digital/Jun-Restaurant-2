@@ -16,7 +16,9 @@ export default function AdminUsersPage() {
   }
 
   useEffect(() => {
-    search();
+    void search();
+    // Intentional: load once on mount; user refetches via "Search" after editing the query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `search` closes over `q`; deps would refetch on every keystroke.
   }, []);
 
   return (

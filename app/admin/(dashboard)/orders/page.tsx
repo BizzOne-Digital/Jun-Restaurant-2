@@ -30,7 +30,9 @@ export default function AdminOrdersPage() {
   }
 
   useEffect(() => {
-    load();
+    void load();
+    // Intentional: initial load only; filters are applied via the "Apply" button (which calls `load`).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load reads `filter`; adding `load` would refetch on every render without useCallback + would duplicate Apply semantics.
   }, []);
 
   async function updateStatus(id: string, orderStatus: string) {

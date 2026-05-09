@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"slug":{"$numberInt":"1"}},"name":"Service_slug_key","unique":true}],"uuid":"398681b8357d4899806761e636ff3350","collectionName":"Service","type":"collection"}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatCents } from "@/lib/utils";
@@ -9,15 +9,15 @@ export default function AdminUserDetailPage() {
   const { id } = useParams();
   const [data, setData] = useState<{ user: Record<string, unknown>; orders: { orderNumber: string; total: number; orderStatus: string; createdAt: string }[] } | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!id) return;
     const res = await fetch(`/api/admin/users/${id}`);
     setData(await res.json());
-  }
+  }, [id]);
 
   useEffect(() => {
-    load();
-  }, [id]);
+    void load();
+  }, [load]);
 
   async function toggleBlock(blocked: boolean) {
     const res = await fetch(`/api/admin/users/${id}`, {
