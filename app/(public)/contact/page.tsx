@@ -16,10 +16,10 @@ export default function ContactPage() {
         subtitle="Questions about pickup, large orders, or catering-style trays? Reach out — we reply during business hours."
       />
 
-      <section className="mx-auto max-w-6xl px-4 py-14 md:px-6 md:py-20">
-        <div className="grid gap-8 lg:grid-cols-2">
+      <section className="mx-auto max-w-6xl px-3 py-12 sm:px-4 sm:py-14 md:px-6 md:py-20">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-2">
           <SectionReveal>
-            <div className="glass-panel h-full rounded-3xl p-8 md:p-10">
+            <div className="glass-panel h-full rounded-2xl p-5 sm:rounded-3xl sm:p-8 md:p-10">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">Direct</p>
               <h2 className="mt-3 font-display text-2xl font-bold text-awok-cream">A Wok</h2>
               <ul className="mt-8 space-y-5 text-sm text-awok-muted">
@@ -43,7 +43,7 @@ export default function ContactPage() {
                 href="https://maps.google.com/?q=1025+A+St+Hayward+CA+94541"
                 target="_blank"
                 rel="noreferrer"
-                className="mt-10 inline-flex rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 px-6 py-2.5 text-sm font-bold text-awok-deep shadow-glow"
+                className="mt-10 inline-flex touch-manipulation rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 px-6 py-3 text-sm font-bold text-awok-deep shadow-glow sm:py-2.5"
               >
                 Open in Google Maps
               </a>
@@ -51,7 +51,7 @@ export default function ContactPage() {
           </SectionReveal>
 
           <SectionReveal>
-            <div className="glass-panel h-full rounded-3xl p-8 md:p-10">
+            <div className="glass-panel h-full rounded-2xl p-5 sm:rounded-3xl sm:p-8 md:p-10">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">Ordering</p>
               <h2 className="mt-3 font-display text-2xl font-bold text-awok-cream">Order online</h2>
               <p className="mt-4 leading-relaxed text-awok-muted">
@@ -61,13 +61,13 @@ export default function ContactPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href="/menu"
-                  className="inline-flex justify-center rounded-full bg-gradient-to-r from-awok-ember via-awok-ember2 to-awok-gold px-6 py-3 text-center text-sm font-bold text-awok-deep shadow-glow"
+                  className="inline-flex touch-manipulation justify-center rounded-full bg-gradient-to-r from-awok-ember via-awok-ember2 to-awok-gold px-6 py-3 text-center text-sm font-bold text-awok-deep shadow-glow"
                 >
                   View menu
                 </Link>
                 <Link
                   href="/track-order"
-                  className="inline-flex justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-awok-cream transition hover:border-awok-gold/40"
+                  className="inline-flex touch-manipulation justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-awok-cream transition hover:border-awok-gold/40"
                 >
                   Track an order
                 </Link>

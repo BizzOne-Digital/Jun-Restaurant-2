@@ -86,12 +86,12 @@ export function MenuPageClient() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-32 pt-8 md:flex md:gap-8 md:px-6 md:pb-16">
+    <div className="mx-auto max-w-6xl px-3 pb-28 pt-6 sm:px-4 sm:pb-32 sm:pt-8 md:flex md:gap-8 md:px-6 md:pb-16">
       <div className="flex-1">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">Menu</p>
-            <h1 className="font-display text-3xl font-bold text-awok-cream md:text-4xl">Crafted for craving</h1>
+            <h1 className="font-display text-2xl font-bold text-awok-cream sm:text-3xl md:text-4xl">Crafted for craving</h1>
           </div>
           <input
             value={query}
@@ -101,7 +101,7 @@ export function MenuPageClient() {
           />
         </div>
 
-        <div className="sticky top-28 z-30 -mx-1 mb-6 flex gap-2 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] md:static md:flex-wrap">
+        <div className="sticky top-[6.5rem] z-30 -mx-1 mb-6 flex gap-2 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:top-28 md:static md:flex-wrap [&::-webkit-scrollbar]:hidden">
           {categories.map((c) => (
             <button
               key={c._id}

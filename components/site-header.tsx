@@ -19,10 +19,10 @@ export function SiteHeader() {
   const count = cartLineCount(lines);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/5 bg-awok-deep/80 backdrop-blur-xl">
-      <div className="mx-auto max-w-6xl px-4 py-3 md:px-6">
-        <div className="flex items-center justify-between gap-4">
-          <Link href="/" className="group flex items-center gap-3">
+    <header className="sticky top-0 z-50 border-b border-white/5 bg-awok-deep/80 backdrop-blur-xl supports-[backdrop-filter]:bg-awok-deep/70">
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-4 md:px-6">
+        <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-4">
+          <Link href="/" className="group flex min-w-0 max-w-[65%] items-center gap-2 sm:max-w-none sm:gap-3">
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
@@ -31,9 +31,13 @@ export function SiteHeader() {
             >
               <Image src="/awok-logo.png" alt="A Wok" fill className="object-contain drop-shadow-glow" sizes="48px" />
             </motion.div>
-            <div className="leading-tight">
-              <p className="font-display text-lg font-bold tracking-wide text-awok-cream md:text-xl">A Wok</p>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-awok-muted">Hayward</p>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate font-display text-base font-bold tracking-wide text-awok-cream sm:text-lg md:text-xl">
+                A Wok
+              </p>
+              <p className="truncate text-[10px] uppercase tracking-[0.15em] text-awok-muted sm:text-[11px] sm:tracking-[0.2em]">
+                Hayward
+              </p>
             </div>
           </Link>
 
@@ -72,10 +76,10 @@ export function SiteHeader() {
                 Sign in
               </Link>
             )}
-            <Link href="/cart" className="relative inline-flex">
+            <Link href="/cart" className="relative inline-flex shrink-0 touch-manipulation">
               <motion.span
                 whileTap={{ scale: 0.96 }}
-                className="rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 px-4 py-2 text-sm font-semibold text-awok-deep shadow-glow"
+                className="rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 px-3 py-2 text-xs font-semibold text-awok-deep shadow-glow sm:px-4 sm:text-sm"
               >
                 Cart{count > 0 ? ` (${count})` : ""}
               </motion.span>

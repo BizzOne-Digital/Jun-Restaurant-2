@@ -56,14 +56,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </button>
           </header>
           <nav
-            className="flex gap-1 overflow-x-auto border-b border-white/5 px-2 py-2 [-webkit-overflow-scrolling:touch]"
+            className="flex gap-1 overflow-x-auto border-b border-white/5 px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             aria-label="Admin sections"
           >
             {nav.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
-                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium ${
+                className={`shrink-0 touch-manipulation rounded-lg px-3 py-2.5 text-xs font-medium ${
                   pathname === n.href ? "bg-white/10 text-awok-cream" : "text-awok-muted"
                 }`}
               >
@@ -72,7 +72,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
         </div>
-        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-8">{children}</div>
+        <div className="min-w-0 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-8">{children}</div>
       </div>
     </div>
   );

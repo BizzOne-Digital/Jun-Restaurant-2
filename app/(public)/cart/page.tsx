@@ -32,7 +32,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] md:px-6 md:pb-10">
+    <div className="mx-auto max-w-4xl px-3 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-10 md:px-6 md:pb-10">
       <h1 className="font-display text-3xl font-bold text-awok-cream">Cart</h1>
       <div className="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="space-y-4">

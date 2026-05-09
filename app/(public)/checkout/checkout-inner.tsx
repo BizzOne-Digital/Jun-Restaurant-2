@@ -90,29 +90,29 @@ export default function CheckoutInner() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 pb-[max(2rem,env(safe-area-inset-bottom))] md:px-6 md:pb-10">
+    <div className="mx-auto max-w-3xl px-3 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-10 md:px-6 md:pb-10">
       <h1 className="font-display text-3xl font-bold text-awok-cream">Checkout</h1>
       <p className="mt-2 text-sm text-awok-muted">Secure payment powered by Stripe.</p>
 
       <div className="mt-8 space-y-8">
         {!session?.user && (
-          <div className="glass-panel space-y-4 rounded-2xl p-6">
+          <div className="glass-panel space-y-4 rounded-2xl p-4 sm:p-6">
             <h2 className="font-semibold text-awok-cream">Guest information</h2>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <input
-                className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-awok-cream"
+                className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
                 placeholder="Full name"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
               />
               <input
-                className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-awok-cream"
+                className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
                 placeholder="Email"
                 value={guestEmail}
                 onChange={(e) => setGuestEmail(e.target.value)}
               />
               <input
-                className="md:col-span-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-awok-cream"
+                className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream md:col-span-2 sm:text-sm"
                 placeholder="Phone"
                 value={guestPhone}
                 onChange={(e) => setGuestPhone(e.target.value)}
@@ -121,27 +121,27 @@ export default function CheckoutInner() {
           </div>
         )}
 
-        <div className="glass-panel space-y-4 rounded-2xl p-6">
+        <div className="glass-panel space-y-4 rounded-2xl p-4 sm:p-6">
           <h2 className="font-semibold text-awok-cream">Pickup</h2>
           <p className="text-xs text-awok-muted">Orders are for in-store pickup only — we do not deliver.</p>
           <input
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-awok-cream"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
             placeholder="Preferred pickup time (optional)"
             value={pickupTime}
             onChange={(e) => setPickupTime(e.target.value)}
           />
           <textarea
             rows={3}
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-awok-cream"
+            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
             placeholder="Special instructions"
             value={customerNotes}
             onChange={(e) => setCustomerNotes(e.target.value)}
           />
         </div>
 
-        <div className="glass-panel space-y-3 rounded-2xl p-6">
+        <div className="glass-panel space-y-3 rounded-2xl p-4 sm:p-6">
           <h2 className="font-semibold text-awok-cream">Tip</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 touch-manipulation">
             {[0, 200, 400, 600].map((t) => (
               <button
                 key={t}
@@ -157,7 +157,7 @@ export default function CheckoutInner() {
           </div>
         </div>
 
-        <div className="glass-panel rounded-2xl p-6">
+        <div className="glass-panel rounded-2xl p-4 sm:p-6">
           <div className="flex justify-between text-sm text-awok-muted">
             <span>Subtotal</span>
             <span className="text-awok-cream">{formatCents(subtotal)}</span>

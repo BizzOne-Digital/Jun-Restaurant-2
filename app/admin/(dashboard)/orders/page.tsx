@@ -153,7 +153,7 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
+      <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-[200px] flex-1">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-awok-muted">Search</label>
           <input
@@ -192,8 +192,8 @@ export default function AdminOrdersPage() {
           Apply
         </button>
       </div>
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-white/8">
-        <table className="min-w-full text-left text-sm">
+      <div className="mt-6 w-full min-w-0 overflow-x-auto rounded-2xl border border-white/8 [-webkit-overflow-scrolling:touch]">
+        <table className="min-w-[640px] w-full text-left text-sm">
           <thead className="bg-black/40 text-xs uppercase text-awok-muted">
             <tr>
               <th className="px-4 py-3">#</th>

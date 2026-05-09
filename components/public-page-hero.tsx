@@ -11,7 +11,7 @@ export function PublicPageHero({ eyebrow, title, subtitle }: PublicPageHeroProps
       <div className="pointer-events-none absolute inset-0 hero-grid opacity-[0.25]" />
       <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-awok-ember/15 blur-3xl" />
       <div className="pointer-events-none absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-awok-gold/10 blur-3xl" />
-      <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
+      <div className="relative mx-auto max-w-6xl px-3 py-12 sm:px-4 sm:py-16 md:px-6 md:py-20">
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-awok-gold">{eyebrow}</p>
         <h1 className="mt-4 max-w-3xl break-words font-display text-3xl font-extrabold leading-[1.15] text-awok-cream sm:text-4xl md:text-5xl">
           {title}

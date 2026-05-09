@@ -22,8 +22,8 @@ export default function TrackOrderLookupPage() {
         title="Track your order"
         subtitle="Enter the order number from your confirmation email or receipt (letters and numbers, no spaces)."
       />
-      <div className="mx-auto max-w-lg px-4 pb-20 pt-2 md:px-6">
-        <form onSubmit={submit} className="glass-panel rounded-3xl p-6 sm:p-8">
+      <div className="mx-auto max-w-lg px-3 pb-20 pt-2 sm:px-4 md:px-6">
+        <form onSubmit={submit} className="glass-panel rounded-2xl p-5 sm:rounded-3xl sm:p-8">
           <label htmlFor="order-num" className="text-xs font-semibold uppercase tracking-widest text-awok-gold">
             Order number
           </label>
@@ -32,12 +32,12 @@ export default function TrackOrderLookupPage() {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="e.g. AWOK-XXXX"
-            className="mt-3 w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-awok-cream outline-none placeholder:text-awok-muted/60 focus:border-awok-ember/50 focus:ring-2 focus:ring-awok-ember/25"
+            className="mt-3 min-h-11 w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-base text-awok-cream outline-none placeholder:text-awok-muted/60 focus:border-awok-ember/50 focus:ring-2 focus:ring-awok-ember/25 sm:text-sm"
             autoComplete="off"
           />
           <button
             type="submit"
-            className="mt-6 w-full rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 py-3 text-sm font-bold text-awok-deep shadow-glow"
+            className="mt-6 min-h-11 w-full touch-manipulation rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 py-3 text-sm font-bold text-awok-deep shadow-glow"
           >
             View status
           </button>

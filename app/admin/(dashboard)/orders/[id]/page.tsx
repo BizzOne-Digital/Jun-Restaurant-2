@@ -113,9 +113,9 @@ export default function AdminOrderDetailPage() {
       : null;
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <div className="min-w-0 space-y-6 sm:space-y-8">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <Link href="/admin/orders" className="text-xs font-semibold uppercase tracking-wider text-awok-gold hover:underline">
             ← Orders
           </Link>
@@ -124,29 +124,29 @@ export default function AdminOrderDetailPage() {
             Placed {order.createdAt ? new Date(order.createdAt).toLocaleString() : "—"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2 touch-manipulation">
           <Link
             href={`/admin/orders/${order._id}/print`}
-            className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-awok-cream hover:border-awok-gold/40"
+            className="rounded-full border border-white/15 px-4 py-2.5 text-center text-sm font-semibold text-awok-cream hover:border-awok-gold/40 sm:py-2"
           >
             Print ticket
           </Link>
           <Link
             href={`/track-order/${encodeURIComponent(order.orderNumber)}`}
-            className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-awok-cream hover:border-awok-gold/40"
+            className="rounded-full border border-white/15 px-4 py-2.5 text-center text-sm font-semibold text-awok-cream hover:border-awok-gold/40 sm:py-2"
           >
             Public track
           </Link>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/8 bg-black/30 p-6">
+      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Status</h2>
-          <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
             <label className="text-sm text-awok-muted">Kitchen / order status</label>
             <select
-              className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm capitalize"
+              className="min-h-11 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-base capitalize text-awok-cream sm:w-auto sm:text-sm"
               value={order.orderStatus}
               onChange={(e) => updateStatus(e.target.value)}
             >
@@ -179,7 +179,7 @@ export default function AdminOrderDetailPage() {
           </dl>
         </div>
 
-        <div className="rounded-2xl border border-white/8 bg-black/30 p-6">
+        <div className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Customer</h2>
           {guest ? (
             <ul className="mt-4 space-y-2 text-sm text-awok-cream">
@@ -207,7 +207,7 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/8 bg-black/30 p-6">
+      <div className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Line items</h2>
         <ul className="mt-4 divide-y divide-white/5">
           {order.items.map((it, i) => (
@@ -259,7 +259,7 @@ export default function AdminOrderDetailPage() {
       </div>
 
       {(order.customerNotes?.trim() || order.adminNotes?.trim()) && (
-        <div className="rounded-2xl border border-white/8 bg-black/30 p-6">
+        <div className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Notes</h2>
           {order.customerNotes?.trim() ? (
             <p className="mt-3 text-sm text-awok-cream">
@@ -276,7 +276,7 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/8 bg-black/30 p-6">
+      <div className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Stripe &amp; email</h2>
         <dl className="mt-4 space-y-2 font-mono text-xs text-awok-muted break-all">
           {order.stripeCheckoutSessionId ? (

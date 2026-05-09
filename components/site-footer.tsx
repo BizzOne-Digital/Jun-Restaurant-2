@@ -3,8 +3,8 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 border-t border-white/5 bg-black/30">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-3 md:px-6">
+    <footer className="mt-16 border-t border-white/5 bg-black/30 sm:mt-20">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-3 py-10 sm:grid-cols-2 sm:gap-10 sm:px-4 sm:py-12 md:grid-cols-3 md:px-6">
         <div>
           <div className="relative mb-4 h-14 w-14">
             <Image src="/awok-logo.png" alt="A Wok" fill className="object-contain" sizes="56px" />

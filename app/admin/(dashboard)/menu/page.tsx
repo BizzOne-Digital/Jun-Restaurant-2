@@ -162,8 +162,8 @@ export default function AdminMenuPage() {
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="min-w-0 space-y-8 sm:space-y-10">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">Menu management</h1>
           <p className="text-sm text-awok-muted">
@@ -176,7 +176,7 @@ export default function AdminMenuPage() {
         </button>
       </div>
 
-      <form onSubmit={createItem} className="grid gap-3 rounded-2xl border border-white/8 bg-black/30 p-5 md:grid-cols-2">
+      <form onSubmit={createItem} className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-5 md:grid-cols-2">
         <input
           className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
           placeholder="Item name"
@@ -222,8 +222,8 @@ export default function AdminMenuPage() {
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-2xl border border-white/8">
-        <table className="min-w-full text-left text-sm">
+      <div className="w-full min-w-0 overflow-x-auto rounded-2xl border border-white/8 [-webkit-overflow-scrolling:touch]">
+        <table className="min-w-[720px] w-full text-left text-sm">
           <thead className="bg-black/40 text-xs uppercase text-awok-muted">
             <tr>
               <th className="px-3 py-2">Item</th>

@@ -42,10 +42,10 @@ export default function AdminPayoutsPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <h1 className="font-display text-2xl font-bold">Payout ledger</h1>
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-white/8">
-        <table className="min-w-full text-left text-sm">
+      <div className="mt-6 w-full min-w-0 overflow-x-auto rounded-2xl border border-white/8 [-webkit-overflow-scrolling:touch]">
+        <table className="min-w-[720px] w-full text-left text-sm">
           <thead className="bg-black/40 text-xs uppercase text-awok-muted">
             <tr>
               <th className="px-3 py-2">Order</th>

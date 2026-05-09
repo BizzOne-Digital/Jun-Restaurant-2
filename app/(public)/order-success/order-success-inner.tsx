@@ -42,7 +42,7 @@ export default function OrderSuccessInner() {
   }, [sessionId]);
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-16 pb-[max(5rem,env(safe-area-inset-bottom))] text-center">
+    <div className="mx-auto max-w-lg px-3 py-12 pb-[max(5rem,env(safe-area-inset-bottom))] text-center sm:px-4 sm:py-16">
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -50,7 +50,7 @@ export default function OrderSuccessInner() {
       >
         <div className="flex h-full w-full items-center justify-center rounded-full bg-awok-deep text-2xl">✓</div>
       </motion.div>
-      <h1 className="font-display text-3xl font-bold text-awok-cream">Thank you</h1>
+      <h1 className="font-display text-2xl font-bold text-awok-cream sm:text-3xl">Thank you</h1>
       {status === "loading" && <p className="mt-4 text-awok-muted">Confirming your payment…</p>}
       {status === "ready" && orderNumber && (
         <>
@@ -61,7 +61,7 @@ export default function OrderSuccessInner() {
           <p className="mt-2 text-sm text-awok-muted">Show this number when you pick up your order.</p>
           <Link
             href={`/track-order/${orderNumber}`}
-            className="mt-10 inline-flex rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 px-8 py-3 text-sm font-bold text-awok-deep"
+            className="mt-10 inline-flex touch-manipulation rounded-full bg-gradient-to-r from-awok-ember to-awok-ember2 px-6 py-3 text-sm font-bold text-awok-deep sm:px-8"
           >
             Track order
           </Link>

@@ -34,7 +34,7 @@ export default function TrackOrderPage() {
   const activeIndex = idx === -1 ? (cancelled ? -1 : 0) : Math.max(0, idx);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 pb-[max(3rem,env(safe-area-inset-bottom))] md:px-6">
+    <div className="mx-auto max-w-3xl px-3 py-10 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-12 md:px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">Order tracking</p>
       <h1 className="break-all font-display text-2xl font-bold text-awok-cream sm:text-3xl">#{orderNumber}</h1>
       {!data && <p className="mt-6 text-awok-muted">Loading…</p>}
@@ -44,7 +44,7 @@ export default function TrackOrderPage() {
         </p>
       )}
       {data && !cancelled && (
-        <div className="mt-10 glass-panel rounded-3xl p-5 sm:p-8">
+        <div className="mt-8 glass-panel rounded-2xl p-4 sm:mt-10 sm:rounded-3xl sm:p-8">
           <div className="relative flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
             {steps.map((s, i) => {
               const done = i <= activeIndex;

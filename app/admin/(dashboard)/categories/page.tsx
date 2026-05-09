@@ -81,38 +81,44 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-6 sm:space-y-8">
       <div>
         <h1 className="font-display text-2xl font-bold">Categories</h1>
         <p className="text-sm text-awok-muted">Create, edit, delete menu sections. Slug is used in URLs and image paths.</p>
       </div>
 
-      <form onSubmit={create} className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/8 bg-black/30 p-5">
+      <form
+        onSubmit={create}
+        className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-black/30 p-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3 sm:p-5"
+      >
         <input
-          className="min-w-[180px] flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-base text-awok-cream sm:text-sm"
           placeholder="Category name (e.g. Appetizer)"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
         <input
-          className="w-40 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
+          className="min-h-11 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-base text-awok-cream sm:w-40 sm:text-sm"
           placeholder="Slug (optional)"
           value={form.slug}
           onChange={(e) => setForm({ ...form, slug: e.target.value })}
         />
         <input
-          className="w-24 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
+          className="min-h-11 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-base text-awok-cream sm:w-24 sm:text-sm"
           placeholder="Order"
           value={form.displayOrder}
           onChange={(e) => setForm({ ...form, displayOrder: e.target.value })}
         />
-        <button type="submit" className="rounded-full bg-awok-gold px-5 py-2 text-sm font-bold text-awok-deep">
+        <button
+          type="submit"
+          className="min-h-11 touch-manipulation rounded-full bg-awok-gold px-5 py-2 text-sm font-bold text-awok-deep sm:min-h-0"
+        >
           Add
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-2xl border border-white/8">
-        <table className="min-w-full text-left text-sm">
+      <div className="w-full min-w-0 overflow-x-auto rounded-2xl border border-white/8 [-webkit-overflow-scrolling:touch]">
+        <table className="min-w-[560px] w-full text-left text-sm">
           <thead className="bg-black/40 text-xs uppercase text-awok-muted">
             <tr>
               <th className="px-3 py-2">Name</th>

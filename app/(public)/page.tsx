@@ -58,13 +58,13 @@ export default async function HomePage() {
         <div className="pointer-events-none absolute -left-20 bottom-0 h-72 w-72 animate-pulse-soft-alt rounded-full bg-awok-gold/12 blur-3xl" />
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[min(90vh,820px)] w-[min(90vw,820px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,107,44,0.08)_0%,transparent_65%)]" />
 
-        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 pb-14 pt-5 text-center sm:gap-12 sm:pt-6 md:flex-row md:items-center md:justify-between md:gap-8 md:pb-20 md:pt-8 md:text-left lg:pt-10">
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-8 px-3 pb-12 pt-4 text-center sm:gap-10 sm:px-4 sm:pb-14 sm:pt-5 md:flex-row md:items-center md:justify-between md:gap-8 md:pb-20 md:pt-8 md:text-left lg:gap-12 lg:pt-10">
           <HeroCopyBlock />
           <HeroVisual />
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 md:px-6">
+      <section className="mx-auto max-w-6xl px-3 py-12 sm:px-4 sm:py-16 md:px-6">
         <SectionReveal className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">From the menu</p>
@@ -122,19 +122,19 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="relative border-y border-white/5 bg-black/25 py-16">
+      <section className="relative border-y border-white/5 bg-black/25 py-12 sm:py-16">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-awok-ember/[0.03] via-transparent to-awok-crimson/[0.04]" />
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 md:grid-cols-3 md:px-6">
+        <div className="relative mx-auto grid max-w-6xl gap-8 px-3 sm:gap-10 sm:px-4 md:grid-cols-3 md:px-6">
           {whyBlocks.map((b, i) => (
             <WhyCard key={b.title} title={b.title} body={b.body} index={i} />
           ))}
         </div>
       </section>
 
-      <section id="hours" className="mx-auto max-w-6xl px-4 py-16 md:px-6">
-        <div className="grid gap-10 md:grid-cols-2">
+      <section id="hours" className="mx-auto max-w-6xl px-3 py-12 sm:px-4 sm:py-16 md:px-6">
+        <div className="grid gap-8 sm:gap-10 md:grid-cols-2">
           <SectionReveal>
-            <div className="glass-panel rounded-3xl p-8 transition-shadow duration-300 hover:shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+            <div className="glass-panel rounded-2xl p-5 transition-shadow duration-300 hover:shadow-[0_24px_60px_rgba(0,0,0,0.35)] sm:rounded-3xl sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">Hours</p>
               <h3 className="mt-2 font-display text-2xl font-bold text-awok-cream">Opening times</h3>
               <ul className="mt-6 space-y-3 text-sm text-awok-muted">
@@ -166,7 +166,7 @@ export default async function HomePage() {
             </div>
           </SectionReveal>
           <SectionReveal>
-            <div id="location" className="glass-panel rounded-3xl p-8 transition-shadow duration-300 hover:shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+            <div id="location" className="glass-panel rounded-2xl p-5 transition-shadow duration-300 hover:shadow-[0_24px_60px_rgba(0,0,0,0.35)] sm:rounded-3xl sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-awok-gold">Location</p>
               <h3 className="mt-2 font-display text-2xl font-bold text-awok-cream">Find A Wok</h3>
               <p className="mt-4 text-awok-muted">{restaurant?.address ?? "1025 A St, Hayward, CA 94541"}</p>

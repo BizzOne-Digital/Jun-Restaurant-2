@@ -110,10 +110,10 @@ export default function AdminSettingsPage() {
   const pickupMins = siteSetting?.pickupPrepareTimeMinutes ?? 20;
 
   return (
-    <div className="space-y-10">
+    <div className="min-w-0 space-y-8 sm:space-y-10">
       <h1 className="font-display text-2xl font-bold">Restaurant settings</h1>
 
-      <form onSubmit={saveGeneral} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-6">
+      <form onSubmit={saveGeneral} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
         <h2 className="text-lg font-semibold">General</h2>
         <input name="name" defaultValue={restaurant.name as string} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm" />
         <input name="address" defaultValue={restaurant.address as string} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm" />
@@ -129,7 +129,11 @@ export default function AdminSettingsPage() {
         </button>
       </form>
 
-      <form key={`email-${emailBrandName}-${emailLogo}-${orderEmail}-${pickupMins}`} onSubmit={saveSiteEmail} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-6">
+      <form
+        key={`email-${emailBrandName}-${emailLogo}-${orderEmail}-${pickupMins}`}
+        onSubmit={saveSiteEmail}
+        className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6"
+      >
         <h2 className="text-lg font-semibold">Order emails &amp; branding</h2>
         <p className="text-xs leading-relaxed text-awok-muted">
           Used for Mailgun / Resend / SMTP templates (customer confirmation, kitchen new order, status updates). For the
@@ -184,7 +188,7 @@ export default function AdminSettingsPage() {
         </button>
       </form>
 
-      <form onSubmit={savePayment} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-6">
+      <form onSubmit={savePayment} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
         <h2 className="text-lg font-semibold">Payments & Stripe Connect</h2>
         <p className="text-xs text-awok-crimsonglow">
           Use stripe_connect_split only after void check, ID, and connected account verification are complete.
