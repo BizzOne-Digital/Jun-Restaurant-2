@@ -53,7 +53,9 @@ export async function POST(req: Request) {
     const menuItems = await MenuItem.find({
       _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
       isAvailable: true,
-    }).lean();
+    })
+      .populate("category", "slug")
+      .lean();
 
     if (menuItems.length !== ids.length) {
       return NextResponse.json({ error: "One or more menu items are invalid" }, { status: 400 });
@@ -65,7 +67,9 @@ export async function POST(req: Request) {
       const m = itemMap.get(line.menuItemId);
       if (!m) continue;
       const name = m.name as string;
-      const meat = requiresProteinChoiceMenuItem(name);
+      const cat = m.category as unknown as { slug?: string } | undefined;
+      const categorySlug = cat && typeof cat === "object" && "slug" in cat ? cat.slug : undefined;
+      const meat = requiresProteinChoiceMenuItem(name, categorySlug);
       if (meat && !isValidProteinSelection(line.selectedOptions)) {
         return NextResponse.json(
           { error: `Choice of Protein is required for "${name}". Open the item on the menu and choose an option.` },
@@ -82,7 +86,9 @@ export async function POST(req: Request) {
       const m = itemMap.get(line.menuItemId);
       if (!m) throw new Error("Missing item");
       const name = m.name as string;
-      const meat = requiresProteinChoiceMenuItem(name);
+      const cat = m.category as unknown as { slug?: string } | undefined;
+      const categorySlug = cat && typeof cat === "object" && "slug" in cat ? cat.slug : undefined;
+      const meat = requiresProteinChoiceMenuItem(name, categorySlug);
       const base = m.price as number;
       const addon = meat ? proteinAddonFromSelected(line.selectedOptions) : 0;
       const unit = base + addon;

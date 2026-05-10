@@ -14,7 +14,7 @@ import {
 import type { MenuItemDTO } from "@/components/menu/types";
 
 type Props = {
-  item: MenuItemDTO & { categoryName: string };
+  item: MenuItemDTO & { categoryName: string; categorySlug?: string };
   popularPickups: MenuItemDTO[];
   onClose: () => void;
   onAddToCart: (payload: {
@@ -33,7 +33,7 @@ type Props = {
 export function MenuItemModal({ item, popularPickups, onClose, onAddToCart, onQuickAdd }: Props) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
-  const meat = requiresProteinChoiceMenuItem(item.name);
+  const meat = requiresProteinChoiceMenuItem(item.name, item.categorySlug ?? item.category?.slug);
   const [protein, setProtein] = useState<string>(PROTEIN_OPTIONS[0].value);
 
   useEffect(() => {

@@ -9,4 +9,6 @@ export type MenuItemDTO = {
   isPopular?: boolean;
   bogoEnabled?: boolean;
   tags?: string[];
+  /** Present on `/api/menu` payloads; used for category-scoped options (e.g. protein). */
+  category?: { _id: string; name: string; slug: string; displayOrder?: number };
 };

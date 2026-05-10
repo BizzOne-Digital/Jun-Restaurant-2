@@ -23,7 +23,9 @@ export function MenuPageClient() {
   const [loading, setLoading] = useState(true);
   const [activeSlug, setActiveSlug] = useState<string>("");
   const [query, setQuery] = useState("");
-  const [modalItem, setModalItem] = useState<(MenuItemDTO & { categoryName: string }) | null>(null);
+  const [modalItem, setModalItem] = useState<(MenuItemDTO & { categoryName: string; categorySlug?: string }) | null>(
+    null
+  );
   const [fbtNonce, setFbtNonce] = useState(0);
   const { lines, addLine } = useCart();
 
@@ -62,9 +64,13 @@ export function MenuPageClient() {
   const subtotal = cartSubtotalCents(lines);
   const count = cartLineCount(lines);
 
-  const openModal = useCallback((item: MenuItemDTO, categoryName: string) => {
+  const openModal = useCallback((item: MenuItemDTO, categoryName: string, categorySlug: string) => {
     setFbtNonce((n) => n + 1);
-    setModalItem({ ...item, categoryName });
+    setModalItem({
+      ...item,
+      categoryName,
+      categorySlug: item.category?.slug ?? categorySlug,
+    });
   }, []);
 
   const handleQuickAdd = useCallback(
@@ -76,7 +82,7 @@ export function MenuPageClient() {
         imageUrl: p.imageUrl,
         quantity: 1,
         bogoEnabled: Boolean(p.bogoEnabled),
-        selectedOptions: requiresProteinChoiceMenuItem(p.name)
+        selectedOptions: requiresProteinChoiceMenuItem(p.name, p.category?.slug)
           ? [{ name: PROTEIN_OPTION_NAME, value: "Vegetarian" }]
           : undefined,
       });
@@ -131,7 +137,7 @@ export function MenuPageClient() {
                 type="button"
                 key={item._id}
                 layout
-                onClick={() => openModal(item, activeCategory?.name ?? "")}
+                onClick={() => openModal(item, activeCategory?.name ?? "", activeCategory?.slug ?? "")}
                 className="group flex w-full flex-col overflow-hidden rounded-2xl border border-white/6 bg-awok-panel/80 text-left shadow-lift transition hover:border-awok-ember/35 hover:shadow-glow sm:flex-row"
               >
                 <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-black/40 sm:aspect-auto sm:h-auto sm:min-h-[140px] sm:w-40">

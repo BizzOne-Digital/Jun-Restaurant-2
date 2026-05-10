@@ -1,6 +1,9 @@
 /** Matches Uber-style "Choice of Protein" for dishes with chicken, beef, pork, shrimp, katsu, or chop in the name. */
 export const PROTEIN_OPTION_NAME = "Choice of Protein";
 
+/** Only items in this menu category show the protein picker (see seed / admin categories). */
+export const PROTEIN_CHOICE_CATEGORY_SLUG = "fried-rice-and-fried-noodle";
+
 export const PROTEIN_OPTIONS: { value: string; label: string; addonCents: number }[] = [
   { value: "Vegetarian", label: "Vegetarian", addonCents: 0 },
   { value: "Chicken", label: "Chicken", addonCents: 100 },
@@ -9,7 +12,8 @@ export const PROTEIN_OPTIONS: { value: string; label: string; addonCents: number
   { value: "Combo", label: "Combo (Chicken, Beef and Shrimp)", addonCents: 300 },
 ];
 
-export function requiresProteinChoiceMenuItem(itemName: string): boolean {
+export function requiresProteinChoiceMenuItem(itemName: string, categorySlug?: string | null): boolean {
+  if (!categorySlug || categorySlug !== PROTEIN_CHOICE_CATEGORY_SLUG) return false;
   return /\b(chicken|beef|pork|shrimp|katsu|chop)\b/i.test(itemName);
 }
 
