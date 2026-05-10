@@ -18,17 +18,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen min-h-[100dvh] bg-[#07080b] text-awok-cream">
-      <aside className="hidden w-56 shrink-0 border-r border-white/5 bg-black/40 p-4 md:block">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-awok-gold">A Wok</p>
-        <p className="mt-1 text-sm text-awok-muted">Admin</p>
+    <div className="flex min-h-screen min-h-[100dvh] bg-[#121212] text-awok-cream">
+      <aside className="hidden w-56 shrink-0 border-r border-white/[0.06] bg-[#0d0d0d] p-4 md:block">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#d4af37]">A Wok</p>
+        <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-awok-muted">Admin</p>
         <nav className="mt-8 space-y-1">
           {nav.map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className={`block rounded-lg px-3 py-2 text-sm font-medium ${
-                pathname === n.href ? "bg-white/10 text-awok-cream" : "text-awok-muted hover:bg-white/5"
+              className={`block rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                pathname === n.href
+                  ? "bg-[#2a2a2a] text-white"
+                  : "text-awok-muted hover:bg-white/[0.04] hover:text-awok-cream"
               }`}
             >
               {n.label}
@@ -63,8 +65,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={n.href}
                 href={n.href}
-                className={`shrink-0 touch-manipulation rounded-lg px-3 py-2.5 text-xs font-medium ${
-                  pathname === n.href ? "bg-white/10 text-awok-cream" : "text-awok-muted"
+                className={`shrink-0 touch-manipulation rounded-xl px-3 py-2.5 text-xs font-medium ${
+                  pathname === n.href ? "bg-[#2a2a2a] text-white" : "text-awok-muted"
                 }`}
               >
                 {n.label}

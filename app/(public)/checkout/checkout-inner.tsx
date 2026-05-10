@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -10,11 +10,23 @@ import { formatCents } from "@/lib/utils";
 import { checkoutBodySchema } from "@/lib/validators/checkout";
 import { cartSubtotalCents, useCart } from "@/components/cart/cart-provider";
 
+const TIP_MAX_CENTS = 500_00;
+
+type TipPreset = "none" | "pct15" | "pct20" | "pct25" | "custom";
+
+function parseCustomTipCents(raw: string): number {
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  const n = parseFloat(cleaned);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(TIP_MAX_CENTS, Math.round(n * 100));
+}
+
 export default function CheckoutInner() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { lines, clear } = useCart();
-  const [tipCents, setTipCents] = useState(0);
+  const [tipPreset, setTipPreset] = useState<TipPreset>("none");
+  const [customTipDollars, setCustomTipDollars] = useState("");
   const [pickupTime, setPickupTime] = useState("");
   const [customerNotes, setCustomerNotes] = useState(searchParams.get("notes") || "");
   const [guestName, setGuestName] = useState("");
@@ -27,7 +39,21 @@ export default function CheckoutInner() {
 
   const subtotal = cartSubtotalCents(lines);
   const tax = Math.round(subtotal * DEFAULT_TAX_RATE);
+
+  const tipCents = useMemo(() => {
+    if (tipPreset === "none") return 0;
+    if (tipPreset === "pct15") return Math.round(subtotal * 0.15);
+    if (tipPreset === "pct20") return Math.round(subtotal * 0.2);
+    if (tipPreset === "pct25") return Math.round(subtotal * 0.25);
+    return parseCustomTipCents(customTipDollars);
+  }, [tipPreset, subtotal, customTipDollars]);
+
   const total = useMemo(() => subtotal + tax + tipCents, [subtotal, tax, tipCents]);
+
+  const selectPreset = useCallback((p: TipPreset) => {
+    setTipPreset(p);
+    if (p !== "custom") setCustomTipDollars("");
+  }, []);
 
   async function pay() {
     if (!lines.length) {
@@ -141,20 +167,55 @@ export default function CheckoutInner() {
 
         <div className="glass-panel space-y-3 rounded-2xl p-4 sm:p-6">
           <h2 className="font-semibold text-awok-cream">Tip</h2>
+          <p className="text-xs text-awok-muted">Percentages are based on your order subtotal (before tax).</p>
           <div className="flex flex-wrap gap-2 touch-manipulation">
-            {[0, 200, 400, 600].map((t) => (
+            {(
+              [
+                { id: "none" as const, label: "No tip" },
+                { id: "pct15" as const, label: "15%" },
+                { id: "pct20" as const, label: "20%" },
+                { id: "pct25" as const, label: "25%" },
+                { id: "custom" as const, label: "Custom" },
+              ] satisfies { id: TipPreset; label: string }[]
+            ).map(({ id, label }) => (
               <button
-                key={t}
+                key={id}
                 type="button"
-                onClick={() => setTipCents(t)}
+                onClick={() => selectPreset(id)}
                 className={`rounded-full px-4 py-1.5 text-xs font-semibold ${
-                  tipCents === t ? "bg-awok-gold text-awok-deep" : "bg-white/10 text-awok-cream"
+                  tipPreset === id ? "bg-awok-gold text-awok-deep" : "bg-white/10 text-awok-cream"
                 }`}
               >
-                {t === 0 ? "No tip" : formatCents(t)}
+                {label}
+                {id !== "none" && id !== "custom" && subtotal > 0 && (
+                  <span className="ml-1 opacity-80">
+                    ({formatCents(Math.round(subtotal * (id === "pct15" ? 0.15 : id === "pct20" ? 0.2 : 0.25)))})
+                  </span>
+                )}
               </button>
             ))}
           </div>
+          {tipPreset === "custom" && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-awok-muted" htmlFor="custom-tip">
+                Custom amount (USD)
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-awok-muted">$</span>
+                <input
+                  id="custom-tip"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  value={customTipDollars}
+                  onChange={(e) => setCustomTipDollars(e.target.value)}
+                  className="min-h-11 w-full max-w-[200px] rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
+                />
+              </div>
+              <p className="text-[11px] text-awok-muted">Maximum tip {formatCents(TIP_MAX_CENTS)}.</p>
+            </div>
+          )}
         </div>
 
         <div className="glass-panel rounded-2xl p-4 sm:p-6">
