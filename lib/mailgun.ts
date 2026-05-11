@@ -54,7 +54,12 @@ export async function sendMailgunEmail(args: SendMailgunEmailArgs): Promise<void
   }
 
   const mailgun = new Mailgun(formData);
-  const mg = mailgun.client({ username: "api", key });
+  const apiUrl = process.env.MAILGUN_API_URL?.trim() || process.env.MAILGUN_ENDPOINT?.trim();
+  const mg = mailgun.client({
+    username: "api",
+    key,
+    ...(apiUrl ? { url: apiUrl.replace(/\/+$/, "") } : {}),
+  });
 
   const text = args.text?.trim() || htmlToPlainText(args.html);
   const from = resolveMailgunFromHeader(args.restaurantDisplayName);
@@ -71,6 +76,36 @@ export async function sendMailgunEmail(args: SendMailgunEmailArgs): Promise<void
   if (args.bcc) payload.bcc = Array.isArray(args.bcc) ? args.bcc : [args.bcc];
   if (args.replyTo) payload["h:Reply-To"] = args.replyTo;
 
-  await mg.messages.create(domain, payload as Parameters<typeof mg.messages.create>[1]);
+  if (process.env.ORDER_EMAIL_TRACE_LOG === "1") {
+    console.info("[email-trace] mailgun:about_to_messages_create", {
+      domain,
+      apiUrl: apiUrl || "https://api.mailgun.net (default US)",
+      from,
+      to: args.to,
+      subject: args.subject,
+    });
+  }
+
+  try {
+    const res = await mg.messages.create(domain, payload as Parameters<typeof mg.messages.create>[1]);
+    if (process.env.ORDER_EMAIL_TRACE_LOG === "1") {
+      console.info("[email-trace] mailgun:response_ok", {
+        domain,
+        id: res && typeof res === "object" && "id" in res ? String((res as { id?: string }).id) : "(no id)",
+      });
+    }
+  } catch (e: unknown) {
+    const err = e as { status?: number; message?: string; details?: string; type?: string };
+    console.error("[mailgun] messages.create failed", {
+      status: err.status,
+      type: err.type,
+      message: err.message,
+      details: typeof err.details === "string" ? err.details.slice(0, 500) : err.details,
+      domain,
+      apiUrl: apiUrl || "default US",
+    });
+    throw e;
+  }
+
   console.info("[mailgun] sent:", args.subject, "→", args.to);
 }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/protein-choice";
 import { checkoutBodySchema } from "@/lib/validators/checkout";
 import { getPublicSiteUrlFromRequest } from "@/lib/get-public-site-url";
+import { traceOrderEmail } from "@/lib/email/order-email-trace";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
@@ -251,9 +252,17 @@ export async function POST(req: Request) {
 
     const paymentIntentDescription = `${restaurant.name} online order · #${orderNumber}`;
 
+    const successUrl = `${siteUrl}/order-success?session_id={CHECKOUT_SESSION_ID}`;
+    traceOrderEmail("checkout:stripe_success_url", {
+      successUrl,
+      cancelUrlPrefix: `${siteUrl}/checkout?cancelled=1`,
+      restaurantSlug: slug,
+      orderNumber,
+    });
+
     const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
-      success_url: `${siteUrl}/order-success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl,
       cancel_url: `${siteUrl}/checkout?cancelled=1`,
       line_items: lineItems,
       metadata,
@@ -277,14 +286,7 @@ export async function POST(req: Request) {
       };
     }
 
-    console.info(
-      "[checkout] creating Stripe session order=",
-      orderNumber,
-      "slug=",
-      slug,
-      "success_url=",
-      sessionParams.success_url?.slice(0, 80)
-    );
+    console.info("[checkout] creating Stripe session order=", orderNumber, "slug=", slug, "success_url=", successUrl);
 
     const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
 

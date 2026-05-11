@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
 import { syncPaidOrderFromStripeCheckout } from "@/lib/stripe-order-payment-sync";
+import { traceOrderEmail } from "@/lib/email/order-email-trace";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export async function GET(req: Request) {
   if (!sessionId) {
     return NextResponse.json({ error: "session_id required" }, { status: 400 });
   }
+  traceOrderEmail("orders/lookup:requested", { sessionIdPrefix: sessionId.slice(0, 14) });
   try {
     await connectDB();
     let order = await Order.findOne({ stripeCheckoutSessionId: sessionId }).lean();
@@ -18,7 +20,21 @@ export async function GET(req: Request) {
       return NextResponse.json({ found: false });
     }
 
+    if (order.paymentStatus !== "paid" && !process.env.STRIPE_SECRET_KEY) {
+      traceOrderEmail("orders/lookup:pending_but_no_stripe_secret", {
+        orderNumber: order.orderNumber,
+        orderId: String(order._id),
+        sessionIdPrefix: sessionId.slice(0, 14),
+        hint: "Set STRIPE_SECRET_KEY on this deployment so the success page can sync payment and send confirmation email (no webhook required)",
+      });
+    }
+
     if (order.paymentStatus !== "paid" && process.env.STRIPE_SECRET_KEY) {
+      traceOrderEmail("orders/lookup:sync_start", {
+        orderNumber: order.orderNumber,
+        orderId: String(order._id),
+        sessionIdPrefix: sessionId.slice(0, 14),
+      });
       console.info("[orders/lookup] payment still pending — syncing with Stripe", order.orderNumber);
       const sync = await syncPaidOrderFromStripeCheckout(sessionId);
       if (!sync.ok) {

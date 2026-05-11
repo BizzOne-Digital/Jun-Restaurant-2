@@ -18,6 +18,7 @@ import {
   buildAdminNewOrderHtml,
   buildAdminNewOrderSubject,
 } from "@/lib/emailTemplates/adminNewOrder";
+import { traceOrderEmail } from "@/lib/email/order-email-trace";
 
 function siteOrigin(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
@@ -86,17 +87,47 @@ export async function sendPaidOrderEmails(
 
     const oid = order._id;
 
+    traceOrderEmail("sendPaidOrderEmails:entry", {
+      orderId: id,
+      orderNumber: order.orderNumber,
+      paymentStatus: order.paymentStatus,
+      merchantNotificationEmailSent: order.merchantNotificationEmailSent,
+      confirmationEmailSent: order.confirmationEmailSent,
+      confirmationEmailStatus: order.confirmationEmailStatus,
+      isMailgunConfigured: isMailgunConfigured(),
+      isLegacyEmailConfigured: isLegacyEmailConfigured(),
+      hasGuestEmail: Boolean(order.guestInfo?.email),
+      hasCustomerRef: Boolean(order.customer),
+    });
+
     if (order.merchantNotificationEmailSent && order.confirmationEmailSent) {
+      traceOrderEmail("sendPaidOrderEmails:exit", {
+        reason: "both_merchant_and_confirmation_already_sent",
+        orderId: id,
+      });
       return;
     }
 
     if (!isMailgunConfigured() && !isLegacyEmailConfigured()) {
       console.warn("[email] No Mailgun / Resend / SMTP configured — skipping order emails");
+      traceOrderEmail("sendPaidOrderEmails:exit", {
+        reason: "no_email_provider_configured",
+        orderId: id,
+        hint: "AWOK needs MAILGUN_API_KEY+MAILGUN_DOMAIN+(MAILGUN_FROM or MAILGUN_FROM_EMAIL), or legacy Resend/SMTP",
+      });
       return;
     }
 
     const origin = siteOrigin();
     const ctx = await loadRestaurantEmailContext(origin);
+
+    traceOrderEmail("sendPaidOrderEmails:context", {
+      orderId: id,
+      restaurantName: ctx.restaurantName,
+      restaurantSlugFromEnv: process.env.RESTAURANT_SLUG?.trim() || "(default a-wok in loadRestaurantEmailContext)",
+      kitchenToFromEnv: Boolean(splitEnvList(process.env.RESTAURANT_ORDER_EMAIL)),
+      kitchenToFromSiteSetting: Boolean(ctx.email),
+    });
 
     const kitchenTo = splitEnvList(process.env.RESTAURANT_ORDER_EMAIL) || ctx.email;
     if (!kitchenTo) {
@@ -230,6 +261,7 @@ export async function sendPaidOrderEmails(
     const skipCustomer = process.env.ORDER_SEND_CUSTOMER_CONFIRMATION?.trim().toLowerCase() === "false";
 
     if (skipCustomer && !order.confirmationEmailSent) {
+      traceOrderEmail("sendPaidOrderEmails:exit", { reason: "ORDER_SEND_CUSTOMER_CONFIRMATION_false", orderId: id });
       await Order.updateOne(
         { _id: oid, confirmationEmailSent: { $ne: true } },
         {
@@ -243,10 +275,14 @@ export async function sendPaidOrderEmails(
       return;
     }
 
-    if (order.confirmationEmailSent) return;
+    if (order.confirmationEmailSent) {
+      traceOrderEmail("sendPaidOrderEmails:exit", { reason: "confirmationEmailSent_already_true", orderId: id });
+      return;
+    }
 
     const cust = await resolveOrderCustomerContact(order);
     if (!cust?.email) {
+      traceOrderEmail("sendPaidOrderEmails:exit", { reason: "no_customer_email_on_order", orderId: id });
       console.error("[email] No customer email on order; skipping confirmation", id);
       await Order.updateOne(
         { _id: oid, confirmationEmailSent: { $ne: true } },
@@ -268,6 +304,15 @@ export async function sendPaidOrderEmails(
 
     try {
       if (isMailgunConfigured()) {
+        traceOrderEmail("customer_confirmation:about_to_send_mailgun", {
+          orderId: id,
+          orderNumber: order.orderNumber,
+          to: cust.email,
+          subject: customerSubject,
+          mailgunDomain: process.env.MAILGUN_DOMAIN?.trim(),
+          fromUsesMAILGUN_FROM: Boolean(process.env.MAILGUN_FROM?.trim()),
+          restaurantDisplayName: ctx.restaurantName,
+        });
         await sendMailgunEmail({
           to: cust.email,
           subject: customerSubject,
@@ -277,6 +322,7 @@ export async function sendPaidOrderEmails(
           replyTo: replyCustomer,
           restaurantDisplayName: ctx.restaurantName,
         });
+        traceOrderEmail("customer_confirmation:mailgun_send_returned_ok", { orderId: id, to: cust.email });
       } else {
         await sendLegacyTransactional({
           to: cust.email,

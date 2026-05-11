@@ -6,6 +6,7 @@ import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
 import { PayoutLedger } from "@/models/PayoutLedger";
 import { sendPaidOrderEmails } from "@/lib/email/send-order-emails";
+import { traceOrderEmail } from "@/lib/email/order-email-trace";
 
 export type CheckoutSyncResult = {
   ok: boolean;
@@ -68,6 +69,15 @@ export async function syncPaidOrderFromStripeCheckout(
     return { ok: false, error: "order_not_found" };
   }
 
+  traceOrderEmail("stripe_sync:checkout_session_resolved", {
+    source: typeof sessionOrId === "string" ? "session_id_string" : "session_object",
+    sessionId,
+    orderIdFromStripe: orderId,
+    stripePaymentStatus: session.payment_status,
+    dbPaymentStatus: order.paymentStatus,
+    orderNumber: order.orderNumber,
+  });
+
   const pi = paymentIntentId(session);
 
   if (!order.stripeCheckoutSessionId) {
@@ -79,6 +89,12 @@ export async function syncPaidOrderFromStripeCheckout(
 
   if (order.paymentStatus === "paid") {
     try {
+      traceOrderEmail("stripe_sync:invoke_sendPaidOrderEmails", {
+        path: "db_already_paid",
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        sessionId,
+      });
       await sendPaidOrderEmails(order._id.toString(), {
         stripeSessionId: sessionId,
         stripePaymentIntentId: pi || order.stripePaymentIntentId || undefined,
@@ -127,6 +143,12 @@ export async function syncPaidOrderFromStripeCheckout(
     const again = await Order.findById(order._id);
     if (again?.paymentStatus === "paid") {
       try {
+        traceOrderEmail("stripe_sync:invoke_sendPaidOrderEmails", {
+          path: "race_first_update_lost_already_paid",
+          orderId: again._id.toString(),
+          orderNumber: again.orderNumber,
+          sessionId,
+        });
         await sendPaidOrderEmails(again._id.toString(), {
           stripeSessionId: sessionId,
           stripePaymentIntentId: pi || again.stripePaymentIntentId || undefined,
@@ -178,6 +200,12 @@ export async function syncPaidOrderFromStripeCheckout(
   );
 
   try {
+    traceOrderEmail("stripe_sync:invoke_sendPaidOrderEmails", {
+      path: "first_transition_pending_to_paid",
+      orderId: updated._id.toString(),
+      orderNumber: updated.orderNumber,
+      sessionId,
+    });
     await sendPaidOrderEmails(updated._id.toString(), {
       stripeSessionId: sessionId,
       stripePaymentIntentId: pi || undefined,
@@ -251,6 +279,13 @@ export async function syncPaidOrderFromPaymentIntent(pi: Stripe.PaymentIntent): 
 
   const sessionId = updated.stripeCheckoutSessionId || "";
   try {
+    traceOrderEmail("stripe_sync:invoke_sendPaidOrderEmails", {
+      path: "payment_intent_succeeded",
+      orderId: updated._id.toString(),
+      orderNumber: updated.orderNumber,
+      paymentIntentId: pi.id,
+      checkoutSessionIdOrEmpty: sessionId || "(none)",
+    });
     await sendPaidOrderEmails(updated._id.toString(), {
       stripeSessionId: sessionId || "unknown",
       stripePaymentIntentId: pi.id,
