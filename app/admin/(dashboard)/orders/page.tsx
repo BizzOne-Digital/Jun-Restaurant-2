@@ -15,6 +15,8 @@ type OrderRow = {
   commissionAmount: number;
   restaurantPayoutAmount: number;
   createdAt: string;
+  /** Present on Mongoose timestamps — updates when payment/order changes; used for new-row chime heuristics. */
+  updatedAt?: string;
   stripePaymentIntentId?: string;
   stripeCheckoutSessionId?: string;
   guestInfo?: { name: string; email: string; phone: string } | null;
@@ -74,6 +76,18 @@ function labelizeStatus(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/**
+ * First time we see a paid row in this session (prev missing) — only chime if the row was touched recently
+ * (payment save bumps `updatedAt`), so slow checkouts still chime but widening filters does not replay old orders.
+ */
+const NEW_PAID_CHIME_MAX_TOUCH_AGE_MS = 180_000;
+
+function isRecentlyTouchedForNewPaidChime(o: OrderRow): boolean {
+  const raw = o.updatedAt ?? o.createdAt;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) && Date.now() - t < NEW_PAID_CHIME_MAX_TOUCH_AGE_MS;
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [filter, setFilter] = useState({ orderStatus: "", paymentStatus: "" });
@@ -91,15 +105,13 @@ export default function AdminOrdersPage() {
   const awaitingPaymentBaselineRef = useRef(true);
   const hasInitialFetchRef = useRef(false);
 
+  /** Always load all orders for this site — server-side status filters would drop rows when payment flips (e.g. pending → paid), so alerts never fire. Filters apply client-side below. */
   const load = useCallback(async () => {
-    const qs = new URLSearchParams();
-    if (filter.orderStatus) qs.set("orderStatus", filter.orderStatus);
-    if (filter.paymentStatus) qs.set("paymentStatus", filter.paymentStatus);
-    const res = await fetch(`/api/admin/orders?${qs.toString()}`);
+    const res = await fetch("/api/admin/orders");
     const data = await res.json();
     setOrders(data.orders ?? []);
     hasInitialFetchRef.current = true;
-  }, [filter.orderStatus, filter.paymentStatus]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -116,25 +128,30 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const enableAlertsWithUnlock = async () => {
-    setAlerts(true);
+  /** Browsers require a user gesture before Audio can play from timers; call from button/checkbox handlers. */
+  const unlockOrderNotificationAudio = async () => {
     try {
       const audio = new Audio("/sounds/order-notification.mp3");
       audio.volume = 0.01;
       await audio.play();
       audio.pause();
     } catch {
-      /* still enable — real chimes will use playOrderNotificationSound */
+      /* Autoplay policy — chimes may stay silent until user interacts again */
     }
   };
 
+  const enableAlertsWithUnlock = async () => {
+    await unlockOrderNotificationAudio();
+    setAlerts(true);
+  };
+
   useEffect(() => {
-    if (!alertsEnabled || q.trim()) return;
+    if (!alertsEnabled) return;
     const t = setInterval(() => {
       void load();
-    }, 30_000);
+    }, 15_000);
     return () => clearInterval(t);
-  }, [alertsEnabled, q, load]);
+  }, [alertsEnabled, load]);
 
   useEffect(() => {
     if (!hasInitialFetchRef.current) return;
@@ -148,8 +165,12 @@ export default function AdminOrdersPage() {
     let paymentJustSucceeded = false;
     for (const o of orders) {
       const prev = lastPaymentStatusByOrderIdRef.current.get(o._id);
-      if (prev !== undefined && prev !== "paid" && o.paymentStatus === "paid") {
-        paymentJustSucceeded = true;
+      if (o.paymentStatus === "paid" && prev !== "paid") {
+        if (prev !== undefined) {
+          paymentJustSucceeded = true;
+        } else if (isRecentlyTouchedForNewPaidChime(o)) {
+          paymentJustSucceeded = true;
+        }
       }
       lastPaymentStatusByOrderIdRef.current.set(o._id, o.paymentStatus);
     }
@@ -159,10 +180,18 @@ export default function AdminOrdersPage() {
     }
   }, [orders, alertsEnabled]);
 
+  const ordersAfterStatusFilters = useMemo(() => {
+    return orders.filter((o) => {
+      if (filter.orderStatus && o.orderStatus !== filter.orderStatus) return false;
+      if (filter.paymentStatus && o.paymentStatus !== filter.paymentStatus) return false;
+      return true;
+    });
+  }, [orders, filter.orderStatus, filter.paymentStatus]);
+
   const displayOrders = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return orders;
-    return orders.filter((o) => {
+    if (!needle) return ordersAfterStatusFilters;
+    return ordersAfterStatusFilters.filter((o) => {
       const { name, email } = customerLines(o);
       const pi = (o.stripePaymentIntentId ?? "").toLowerCase();
       const cs = (o.stripeCheckoutSessionId ?? "").toLowerCase();
@@ -177,7 +206,7 @@ export default function AdminOrdersPage() {
         cs.includes(needle)
       );
     });
-  }, [orders, q]);
+  }, [ordersAfterStatusFilters, q]);
 
   async function updateStatus(id: string, orderStatus: string) {
     await fetch(`/api/admin/orders/${id}/status`, {
@@ -202,7 +231,7 @@ export default function AdminOrdersPage() {
             >
               Enable order alerts
               <span className="mt-0.5 block font-normal text-awok-muted">
-                Chime when a payment moves to paid (not on first load).
+                Chime when a payment moves to paid (not on first load). Leave this Orders page open; rechecks about every 15s.
               </span>
             </button>
           ) : (
@@ -210,10 +239,15 @@ export default function AdminOrdersPage() {
               <input
                 type="checkbox"
                 checked={alertsEnabled}
-                onChange={(e) => setAlerts(e.target.checked)}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  if (on) void unlockOrderNotificationAudio();
+                  setAlerts(on);
+                }}
                 className="size-4 rounded border-white/25 bg-[#1e1e1e] text-blue-500 accent-blue-500"
               />
               <span className="text-blue-300">Order alerts on</span>
+              <span className="text-xs text-awok-muted">(this tab · ~15s refresh)</span>
             </label>
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-stretch">
