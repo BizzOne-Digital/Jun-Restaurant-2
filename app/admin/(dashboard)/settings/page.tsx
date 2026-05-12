@@ -49,11 +49,16 @@ export default function AdminSettingsPage() {
   async function savePayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const body = {
+    const body: Record<string, unknown> = {
       paymentMode: fd.get("paymentMode"),
       stripeConnectedAccountId: fd.get("stripeConnectedAccountId"),
+      stripeAccountId: fd.get("stripeAccountId"),
       hasSubmittedVoidCheckAndId: fd.get("hasSubmittedVoidCheckAndId") === "on",
     };
+    const cr = fd.get("commissionRate");
+    if (cr !== null && String(cr).trim() !== "") body.commissionRate = Number(cr);
+    const cp = fd.get("commissionPercentage");
+    if (cp !== null && String(cp).trim() !== "") body.commissionPercentage = Number(cp);
     const res = await fetch("/api/admin/settings/payment", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -206,6 +211,44 @@ export default function AdminSettingsPage() {
           defaultValue={(restaurant.stripeConnectedAccountId as string) || ""}
           placeholder="acct_..."
           className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
+        />
+        <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">
+          Stripe Connect account (alias, optional)
+        </label>
+        <input
+          name="stripeAccountId"
+          defaultValue={(restaurant.stripeAccountId as string) || ""}
+          placeholder="acct_… same as above if you use this field in DB"
+          className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
+        />
+        <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">
+          Connect commission % (whole number, e.g. 12 = 12%)
+        </label>
+        <input
+          name="commissionPercentage"
+          type="number"
+          min={0}
+          max={100}
+          step={1}
+          defaultValue={Number(restaurant.commissionPercentage ?? 10)}
+          className="w-full max-w-xs rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
+        />
+        <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">
+          Connect commission rate (decimal override, optional, e.g. 0.12)
+        </label>
+        <input
+          name="commissionRate"
+          type="number"
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={
+            typeof restaurant.commissionRate === "number" && !Number.isNaN(restaurant.commissionRate)
+              ? restaurant.commissionRate
+              : ""
+          }
+          placeholder="0.12"
+          className="w-full max-w-xs rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="hasSubmittedVoidCheckAndId" defaultChecked={restaurant.hasSubmittedVoidCheckAndId as boolean} />

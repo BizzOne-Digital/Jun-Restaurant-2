@@ -18,18 +18,18 @@ import { checkoutBodySchema } from "@/lib/validators/checkout";
 import { getPublicSiteUrlFromRequest } from "@/lib/get-public-site-url";
 import { traceOrderEmail } from "@/lib/email/order-email-trace";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
+import {
+  A_WOK_SLUG,
+  connectPlatformFeeFraction,
+  resolveStripeConnectDestinationId,
+  shouldUseStripeConnectDestinationCharge,
+} from "@/lib/stripe-connect-checkout";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
 import { Restaurant } from "@/models/Restaurant";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
-
-/** Stripe Connect Express / Standard account for A Wok (destination charges). */
-const A_WOK_STRIPE_CONNECTED_ACCOUNT_ID = "acct_1TUzIAKCfxKlyEKO";
-const A_WOK_SLUG = "a-wok";
-/** Platform keeps 12% (application fee); A Wok connected account receives the remainder (~88% before rounding). */
-const STRIPE_CONNECT_PLATFORM_FEE_RATE = 0.12;
 
 export async function POST(req: Request) {
   try {
@@ -119,31 +119,28 @@ export async function POST(req: Request) {
     const tip = body.tipCents;
     const total = subtotal + tax + deliveryFee + tip;
 
-    // `total` is already integer USD cents (subtotal + tax + delivery + tip).
-    const orderTotalInCents = total;
+    // Integer USD cents: subtotal + tax + delivery + tip (final payable amount).
+    const totalAmountInCents = total;
 
-    const trimmedConnectId = restaurant.stripeConnectedAccountId?.trim() ?? "";
-    const resolvedConnectedAccountId =
-      trimmedConnectId || (restaurant.slug === A_WOK_SLUG ? A_WOK_STRIPE_CONNECTED_ACCOUNT_ID : "");
+    const destinationAccountId = resolveStripeConnectDestinationId(restaurant);
+    const useDestinationCharge = shouldUseStripeConnectDestinationCharge(restaurant, destinationAccountId);
 
-    const useConnect =
-      restaurant.paymentMode === "stripe_connect_split" && Boolean(resolvedConnectedAccountId);
-
-    if (restaurant.paymentMode === "stripe_connect_split" && !useConnect) {
+    if (restaurant.paymentMode === "stripe_connect_split" && !destinationAccountId) {
       return NextResponse.json(
         { error: "Stripe Connect is not fully configured for this restaurant" },
         { status: 400 }
       );
     }
 
-    const paymentMode = useConnect ? "stripe_connect_split" : "platform_collect";
+    const platformFeeFraction = connectPlatformFeeFraction(restaurant);
+    const paymentMode = useDestinationCharge ? "stripe_connect_split" : "platform_collect";
 
-    const commissionAmount = useConnect
-      ? Math.round(orderTotalInCents * STRIPE_CONNECT_PLATFORM_FEE_RATE)
-      : commissionFromTotalCents(orderTotalInCents);
-    const restaurantPayoutAmount = useConnect
-      ? orderTotalInCents - commissionAmount
-      : restaurantPayoutFromTotalCents(orderTotalInCents);
+    const commissionAmount = useDestinationCharge
+      ? Math.round(totalAmountInCents * platformFeeFraction)
+      : commissionFromTotalCents(totalAmountInCents);
+    const restaurantPayoutAmount = useDestinationCharge
+      ? totalAmountInCents - commissionAmount
+      : restaurantPayoutFromTotalCents(totalAmountInCents);
 
     const orderNumber = generateOrderNumber();
 
@@ -173,7 +170,7 @@ export async function POST(req: Request) {
       pickupTime: body.pickupTime ?? "",
       deliveryAddress: null,
       customerNotes: body.customerNotes ?? "",
-      stripeConnectedAccountId: useConnect ? resolvedConnectedAccountId : "",
+      stripeConnectedAccountId: useDestinationCharge ? destinationAccountId : "",
     });
 
     const stripe = getStripe();
@@ -263,6 +260,13 @@ export async function POST(req: Request) {
       paymentMode,
     };
 
+    if (useDestinationCharge) {
+      metadata.connectedAccountId = destinationAccountId;
+      if (restaurant.slug === A_WOK_SLUG) {
+        metadata.restaurant_name = "A WOK";
+      }
+    }
+
     const paymentIntentDescription = `${restaurant.name} online order · #${orderNumber}`;
 
     const successUrl = `${siteUrl}/order-success?session_id={CHECKOUT_SESSION_ID}`;
@@ -283,14 +287,13 @@ export async function POST(req: Request) {
       customer_email: customerEmail,
     };
 
-    if (paymentMode === "stripe_connect_split" && resolvedConnectedAccountId) {
-      // Destination charge: funds land on the connected account minus the application fee.
-      // Platform commission: 12% of the charge (`application_fee_amount` stays on the platform).
-      // A Wok receives the rest (~88% of `orderTotalInCents`; exact net is total − application fee in integer cents).
+    if (useDestinationCharge) {
+      // Destination charge: application_fee_amount is retained by the platform (commission);
+      // Stripe transfers the remaining balance to the connected account (Connect).
       sessionParams.payment_intent_data = {
         application_fee_amount: commissionAmount,
         transfer_data: {
-          destination: A_WOK_STRIPE_CONNECTED_ACCOUNT_ID,
+          destination: destinationAccountId,
         },
         description: paymentIntentDescription,
         metadata: { ...metadata },

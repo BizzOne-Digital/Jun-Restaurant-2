@@ -19,6 +19,8 @@ const restaurantSchema = new Schema(
     logoUrl: { type: String, default: "/awok-logo.png" },
     heroImageUrl: { type: String, default: "" },
     stripeConnectedAccountId: { type: String, default: "" },
+    /** Optional alias for stripeConnectedAccountId (same Stripe Connect acct_ value). */
+    stripeAccountId: { type: String, default: "" },
     hasSubmittedVoidCheckAndId: { type: Boolean, default: false },
     paymentMode: {
       type: String,
@@ -26,6 +28,8 @@ const restaurantSchema = new Schema(
       default: "platform_collect",
     },
     commissionPercentage: { type: Number, default: 10 },
+    /** Optional platform fee as decimal (e.g. 0.12 = 12%). Overrides commissionPercentage for Connect fees when set. */
+    commissionRate: { type: Number },
     openingHours: { type: [openingSlotSchema], default: [] },
     isAcceptingOrders: { type: Boolean, default: true },
   },
