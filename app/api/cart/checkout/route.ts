@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth-options";
 import { commissionFromTotalCents, DEFAULT_TAX_RATE, restaurantPayoutFromTotalCents } from "@/lib/constants";
 import { connectDB } from "@/lib/mongodb";
 import { generateOrderNumber } from "@/lib/order-number";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { lineSubtotalCents, bogoPayableQuantity } from "@/lib/pricing";
 import {
@@ -308,15 +309,33 @@ export async function POST(req: Request) {
     order.stripeCheckoutSessionId = checkoutSession.id;
     await order.save();
 
+    if (!checkoutSession.url) {
+      console.error("[checkout] Stripe session missing url", checkoutSession.id);
+      return NextResponse.json({ error: "Checkout session could not be started. Try again." }, { status: 500 });
+    }
+
     return NextResponse.json({ url: checkoutSession.url, orderId: order._id.toString(), orderNumber });
   } catch (e) {
-    console.error(e);
+    console.error("[checkout]", e);
+
+    if (e instanceof Stripe.errors.StripeError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+
     const msg =
       e instanceof Error
         ? e.message
         : typeof e === "object" && e !== null && "message" in e
           ? String((e as { message: unknown }).message)
           : "Checkout failed";
+
+    if (msg.includes("STRIPE_SECRET_KEY")) {
+      return NextResponse.json(
+        { error: "Payment is not configured (missing STRIPE_SECRET_KEY on the server)." },
+        { status: 503 }
+      );
+    }
+
     const safeDetail =
       process.env.NODE_ENV === "development"
         ? msg

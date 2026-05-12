@@ -12,6 +12,23 @@ import { cartSubtotalCents, useCart } from "@/components/cart/cart-provider";
 
 const TIP_MAX_CENTS = 500_00;
 
+function checkoutApiErrorMessage(data: unknown): string {
+  if (!data || typeof data !== "object") return "Checkout failed";
+  const err = (data as { error?: unknown }).error;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object") {
+    const f = err as { formErrors?: unknown[]; fieldErrors?: Record<string, unknown> };
+    if (Array.isArray(f.formErrors) && f.formErrors.length > 0) {
+      const first = f.formErrors[0];
+      if (typeof first === "string") return first;
+    }
+    for (const v of Object.values(f.fieldErrors ?? {})) {
+      if (Array.isArray(v) && v.length > 0 && typeof v[0] === "string") return v[0];
+    }
+  }
+  return "Checkout failed";
+}
+
 type TipPreset = "none" | "pct15" | "pct20" | "pct25" | "custom";
 
 function parseCustomTipCents(raw: string): number {
@@ -95,9 +112,21 @@ export default function CheckoutInner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(parsed.data),
     });
-    const data = await res.json();
+
+    let data: { url?: string; error?: unknown } = {};
+    try {
+      data = (await res.json()) as typeof data;
+    } catch {
+      toast.error(`Checkout failed (HTTP ${res.status}). Try again.`);
+      return;
+    }
+
     if (!res.ok) {
-      toast.error(typeof data.error === "string" ? data.error : "Checkout failed");
+      toast.error(checkoutApiErrorMessage(data));
+      return;
+    }
+    if (!data.url || typeof data.url !== "string") {
+      toast.error("Checkout did not return a payment link. Try again.");
       return;
     }
     clear();
