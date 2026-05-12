@@ -11,7 +11,6 @@ const nav = [
   { href: "/admin/menu", label: "Menu" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/settings", label: "Settings" },
-  { href: "/admin/payouts", label: "Payouts" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

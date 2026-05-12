@@ -3,7 +3,6 @@ import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
-import { PayoutLedger } from "@/models/PayoutLedger";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
 import { User } from "@/models/User";
@@ -37,7 +36,6 @@ export async function GET(req: Request) {
     const commission = paidOrders.reduce((s, o) => s + o.commissionAmount, 0);
     const restaurantPayout = paidOrders.reduce((s, o) => s + o.restaurantPayoutAmount, 0);
 
-    const pendingPayouts = await PayoutLedger.countDocuments({ status: "pending" });
     const activeMenu = await MenuItem.countDocuments({ isAvailable: true });
     const newCustomers = await User.countDocuments({
       role: "customer",
@@ -56,7 +54,6 @@ export async function GET(req: Request) {
       totalRevenueCents: revenue,
       platformCommissionCents: commission,
       restaurantPayoutCents: restaurantPayout,
-      pendingPayouts,
       activeMenuItems: activeMenu,
       newCustomers,
       orderStatusOverview: statusCounts,

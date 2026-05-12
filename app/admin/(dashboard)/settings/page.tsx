@@ -46,31 +46,6 @@ export default function AdminSettingsPage() {
     load();
   }
 
-  async function savePayment(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const body: Record<string, unknown> = {
-      paymentMode: fd.get("paymentMode"),
-      stripeConnectedAccountId: fd.get("stripeConnectedAccountId"),
-      stripeAccountId: fd.get("stripeAccountId"),
-      hasSubmittedVoidCheckAndId: fd.get("hasSubmittedVoidCheckAndId") === "on",
-    };
-    const cr = fd.get("commissionRate");
-    if (cr !== null && String(cr).trim() !== "") body.commissionRate = Number(cr);
-    const cp = fd.get("commissionPercentage");
-    if (cp !== null && String(cp).trim() !== "") body.commissionPercentage = Number(cp);
-    const res = await fetch("/api/admin/settings/payment", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      toast.error(err.error ?? "Save failed");
-    } else toast.success("Payment settings updated");
-    load();
-  }
-
   async function saveSiteEmail(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -190,72 +165,6 @@ export default function AdminSettingsPage() {
         />
         <button type="submit" className="rounded-full bg-awok-ember px-6 py-2 text-sm font-bold text-awok-deep">
           Save order email settings
-        </button>
-      </form>
-
-      <form onSubmit={savePayment} className="space-y-4 rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
-        <h2 className="text-lg font-semibold">Payments & Stripe Connect</h2>
-        <p className="text-xs text-awok-crimsonglow">
-          Use stripe_connect_split only after void check, ID, and connected account verification are complete.
-        </p>
-        <select
-          name="paymentMode"
-          defaultValue={restaurant.paymentMode as string}
-          className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        >
-          <option value="platform_collect">platform_collect</option>
-          <option value="stripe_connect_split">stripe_connect_split</option>
-        </select>
-        <input
-          name="stripeConnectedAccountId"
-          defaultValue={(restaurant.stripeConnectedAccountId as string) || ""}
-          placeholder="acct_..."
-          className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        />
-        <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">
-          Stripe Connect account (alias, optional)
-        </label>
-        <input
-          name="stripeAccountId"
-          defaultValue={(restaurant.stripeAccountId as string) || ""}
-          placeholder="acct_… same as above if you use this field in DB"
-          className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        />
-        <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">
-          Connect commission % (whole number, e.g. 12 = 12%)
-        </label>
-        <input
-          name="commissionPercentage"
-          type="number"
-          min={0}
-          max={100}
-          step={1}
-          defaultValue={Number(restaurant.commissionPercentage ?? 10)}
-          className="w-full max-w-xs rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        />
-        <label className="block text-xs font-semibold uppercase tracking-wider text-awok-gold">
-          Connect commission rate (decimal override, optional, e.g. 0.12)
-        </label>
-        <input
-          name="commissionRate"
-          type="number"
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={
-            typeof restaurant.commissionRate === "number" && !Number.isNaN(restaurant.commissionRate)
-              ? restaurant.commissionRate
-              : ""
-          }
-          placeholder="0.12"
-          className="w-full max-w-xs rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="hasSubmittedVoidCheckAndId" defaultChecked={restaurant.hasSubmittedVoidCheckAndId as boolean} />
-          Void check & ID submitted
-        </label>
-        <button type="submit" className="rounded-full bg-awok-gold px-6 py-2 text-sm font-bold text-awok-deep">
-          Save payment settings
         </button>
       </form>
     </div>

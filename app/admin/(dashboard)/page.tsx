@@ -9,7 +9,6 @@ export default function AdminDashboardPage() {
     totalRevenueCents: number;
     platformCommissionCents: number;
     restaurantPayoutCents: number;
-    pendingPayouts: number;
     activeMenuItems: number;
     newCustomers: number;
     orderStatusOverview: { _id: string; count: number }[];
@@ -30,7 +29,6 @@ export default function AdminDashboardPage() {
     { label: "Total revenue", value: formatCents(data.totalRevenueCents) },
     { label: "Platform commission", value: formatCents(data.platformCommissionCents) },
     { label: "Restaurant payout (all-time)", value: formatCents(data.restaurantPayoutCents) },
-    { label: "Pending payouts", value: String(data.pendingPayouts) },
     { label: "Active menu items", value: String(data.activeMenuItems) },
     { label: "New customers (today)", value: String(data.newCustomers) },
   ];
