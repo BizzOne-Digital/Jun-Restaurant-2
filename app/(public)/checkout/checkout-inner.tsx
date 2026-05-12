@@ -15,7 +15,13 @@ const TIP_MAX_CENTS = 500_00;
 function checkoutApiErrorMessage(data: unknown): string {
   if (!data || typeof data !== "object") return "Checkout failed";
   const err = (data as { error?: unknown }).error;
-  if (typeof err === "string") return err;
+  const code = (data as { code?: unknown }).code;
+  if (typeof err === "string") {
+    if (typeof code === "string" && code && code !== "checkout_failed") {
+      return `${err} (${code})`;
+    }
+    return err;
+  }
   if (err && typeof err === "object") {
     const f = err as { formErrors?: unknown[]; fieldErrors?: Record<string, unknown> };
     if (Array.isArray(f.formErrors) && f.formErrors.length > 0) {

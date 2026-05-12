@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
@@ -45,7 +44,7 @@ export async function PATCH(req: Request) {
     $set.commissionRate = data.commissionRate;
   }
 
-  const updateQuery: mongoose.UpdateQuery = { $set };
+  const updateQuery: Record<string, unknown> = { $set };
   if (data.commissionRate === null) {
     updateQuery.$unset = { commissionRate: "" };
   }

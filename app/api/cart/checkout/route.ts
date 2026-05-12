@@ -14,6 +14,7 @@ import {
   proteinAddonFromSelected,
   requiresProteinChoiceMenuItem,
 } from "@/lib/protein-choice";
+import { checkoutErrorHttpResponse } from "@/lib/checkout-error-response";
 import { checkoutBodySchema } from "@/lib/validators/checkout";
 import { getPublicSiteUrlFromRequest } from "@/lib/get-public-site-url";
 import { traceOrderEmail } from "@/lib/email/order-email-trace";
@@ -365,29 +366,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: checkoutSession.url, orderId: order._id.toString(), orderNumber });
   } catch (e) {
     console.error("[checkout]", e);
-
-    if (e instanceof Stripe.errors.StripeError) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
-    }
-
-    const msg =
-      e instanceof Error
-        ? e.message
-        : typeof e === "object" && e !== null && "message" in e
-          ? String((e as { message: unknown }).message)
-          : "Checkout failed";
-
-    if (msg.includes("STRIPE_SECRET_KEY")) {
-      return NextResponse.json(
-        { error: "Payment is not configured (missing STRIPE_SECRET_KEY on the server)." },
-        { status: 503 }
-      );
-    }
-
-    const safeDetail =
-      process.env.NODE_ENV === "development"
-        ? msg
-        : "Checkout failed. Check server logs.";
-    return NextResponse.json({ error: safeDetail }, { status: 500 });
+    const { status, body } = checkoutErrorHttpResponse(e);
+    return NextResponse.json(body, { status });
   }
 }
