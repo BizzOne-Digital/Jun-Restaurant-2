@@ -24,6 +24,7 @@ import {
   resolveStripeConnectDestinationId,
   shouldUseStripeConnectDestinationCharge,
 } from "@/lib/stripe-connect-checkout";
+import "@/models/Category";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
 import { Restaurant } from "@/models/Restaurant";
@@ -307,7 +308,51 @@ export async function POST(req: Request) {
 
     console.info("[checkout] creating Stripe session order=", orderNumber, "slug=", slug, "success_url=", successUrl);
 
-    const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
+    let checkoutSession: Stripe.Checkout.Session;
+    try {
+      checkoutSession = await stripe.checkout.sessions.create(sessionParams);
+    } catch (createErr) {
+      if (
+        createErr instanceof Stripe.errors.StripeError &&
+        createErr.code === "insufficient_capabilities_for_transfer" &&
+        useDestinationCharge
+      ) {
+        console.warn(
+          "[checkout] Connect destination rejected (transfers not active); retrying as platform collect",
+          { slug, orderNumber, destinationAccountId }
+        );
+        const fallbackCommission = commissionFromTotalCents(totalAmountInCents);
+        const fallbackPayout = restaurantPayoutFromTotalCents(totalAmountInCents);
+        order.paymentMode = "platform_collect";
+        order.commissionAmount = fallbackCommission;
+        order.restaurantPayoutAmount = fallbackPayout;
+        order.stripeConnectedAccountId = "";
+        await order.save();
+
+        const metadataPlatform: Record<string, string> = {
+          ...metadata,
+          paymentMode: "platform_collect",
+          restaurant_name: String(restaurant.name),
+        };
+        delete metadataPlatform.connectedAccountId;
+
+        checkoutSession = await stripe.checkout.sessions.create({
+          mode: "payment",
+          success_url: successUrl,
+          cancel_url: `${siteUrl}/checkout?cancelled=1`,
+          line_items: lineItems,
+          metadata: metadataPlatform,
+          client_reference_id: order._id.toString(),
+          customer_email: customerEmail,
+          payment_intent_data: {
+            description: paymentIntentDescription,
+            metadata: { ...metadataPlatform },
+          },
+        });
+      } else {
+        throw createErr;
+      }
+    }
 
     order.stripeCheckoutSessionId = checkoutSession.id;
     await order.save();

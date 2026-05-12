@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
@@ -9,13 +10,11 @@ export const dynamic = "force-dynamic";
 
 const patchSchema = z.object({
   paymentMode: z.enum(["platform_collect", "stripe_connect_split"]),
-  stripeConnectedAccountId: z.string().max(120).optional(),
-  /** Optional alias for the same Stripe Connect `acct_` id. */
-  stripeAccountId: z.string().max(120).optional(),
+  stripeConnectedAccountId: z.string().max(200).optional(),
+  stripeAccountId: z.string().max(200).optional(),
   hasSubmittedVoidCheckAndId: z.boolean().optional(),
-  /** Platform commission as decimal, e.g. 0.12 for 12% (Connect application fee). */
   commissionRate: z.number().min(0).max(1).optional().nullable(),
-  commissionPercentage: z.number().min(0).max(100).optional(),
+  commissionPercentage: z.number().int().min(0).max(100).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -28,43 +27,36 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const data = parsed.data;
+  const $set: Record<string, unknown> = { paymentMode: data.paymentMode };
+  if (data.stripeConnectedAccountId !== undefined) {
+    $set.stripeConnectedAccountId = String(data.stripeConnectedAccountId ?? "").trim();
+  }
+  if (data.stripeAccountId !== undefined) {
+    $set.stripeAccountId = String(data.stripeAccountId ?? "").trim();
+  }
+  if (data.hasSubmittedVoidCheckAndId !== undefined) {
+    $set.hasSubmittedVoidCheckAndId = data.hasSubmittedVoidCheckAndId;
+  }
+  if (data.commissionPercentage !== undefined) {
+    $set.commissionPercentage = data.commissionPercentage;
+  }
+  if (data.commissionRate !== undefined && data.commissionRate !== null) {
+    $set.commissionRate = data.commissionRate;
+  }
+
+  const updateQuery: mongoose.UpdateQuery = { $set };
+  if (data.commissionRate === null) {
+    updateQuery.$unset = { commissionRate: "" };
+  }
+
   try {
     await connectDB();
     const slug = resolveRestaurantSlugFromRequest(req);
-    const existing = await Restaurant.findOne({ slug });
-    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    const mergedConnect = `${parsed.data.stripeConnectedAccountId ?? existing.stripeConnectedAccountId ?? ""}`.trim();
-    const mergedStripeAcct = `${parsed.data.stripeAccountId ?? (existing as { stripeAccountId?: string }).stripeAccountId ?? ""}`.trim();
-    const mergedDestination = mergedConnect || mergedStripeAcct;
-
-    if (parsed.data.paymentMode === "stripe_connect_split" && !mergedDestination) {
-      return NextResponse.json(
-        { error: "Stripe Connected Account ID (or stripeAccountId) is required for Connect split mode" },
-        { status: 400 }
-      );
-    }
-
-    const update: Record<string, unknown> = {
-      paymentMode: parsed.data.paymentMode,
-    };
-    if (parsed.data.stripeConnectedAccountId !== undefined) {
-      update.stripeConnectedAccountId = parsed.data.stripeConnectedAccountId.trim();
-    }
-    if (parsed.data.stripeAccountId !== undefined) {
-      update.stripeAccountId = parsed.data.stripeAccountId.trim();
-    }
-    if (parsed.data.hasSubmittedVoidCheckAndId !== undefined) {
-      update.hasSubmittedVoidCheckAndId = parsed.data.hasSubmittedVoidCheckAndId;
-    }
-    if (parsed.data.commissionRate !== undefined) {
-      update.commissionRate = parsed.data.commissionRate;
-    }
-    if (parsed.data.commissionPercentage !== undefined) {
-      update.commissionPercentage = parsed.data.commissionPercentage;
-    }
-
-    const restaurant = await Restaurant.findOneAndUpdate({ slug }, update, { new: true }).lean();
+    const restaurant = await Restaurant.findOneAndUpdate({ slug }, updateQuery, {
+      new: true,
+    }).lean();
+    if (!restaurant) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ restaurant });
   } catch (e) {
     console.error(e);

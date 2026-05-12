@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { slugify } from "@/lib/utils";
+import "@/models/Category";
 import { MenuItem } from "@/models/MenuItem";
 
 export const dynamic = "force-dynamic";
