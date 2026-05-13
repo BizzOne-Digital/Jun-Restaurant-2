@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sanitizeRestaurantForAdminClient } from "@/lib/admin-api-sanitize";
 import { connectDB } from "@/lib/mongodb";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
@@ -13,7 +14,9 @@ export async function GET(req: Request) {
     if (!restaurant) {
       return NextResponse.json({ error: "Restaurant not found", slug }, { status: 404 });
     }
-    return NextResponse.json({ restaurant });
+    return NextResponse.json({
+      restaurant: sanitizeRestaurantForAdminClient(restaurant as unknown as Record<string, unknown>),
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

@@ -7,6 +7,37 @@ import { Order } from "@/models/Order";
 import { PayoutLedger } from "@/models/PayoutLedger";
 import { sendPaidOrderEmails } from "@/lib/email/send-order-emails";
 import { traceOrderEmail } from "@/lib/email/order-email-trace";
+import { calculatePlatformFee, calculateRestaurantPayout } from "@/lib/payment-config";
+
+/** Legacy rows may still use platform_collect; new checkouts always use Connect split (see lib/payment-config.ts). */
+function ledgerForPaidOrder(order: {
+  total: number;
+  paymentMode: string;
+  commissionAmount: number;
+  restaurantPayoutAmount: number;
+}): {
+  commissionAmount: number;
+  restaurantPayoutAmount: number;
+  scenario: "instant_connect_split" | "platform_collect_then_later_payout";
+  ledgerStatus: "transferred" | "pending";
+} {
+  if (order.paymentMode === "platform_collect") {
+    return {
+      commissionAmount: order.commissionAmount,
+      restaurantPayoutAmount: order.restaurantPayoutAmount,
+      scenario: "platform_collect_then_later_payout",
+      ledgerStatus: "pending",
+    };
+  }
+  // Stripe split settings are intentionally hardcoded server-side so restaurant/admin users
+  // cannot modify commission or destination account from the admin portal.
+  return {
+    commissionAmount: calculatePlatformFee(order.total),
+    restaurantPayoutAmount: calculateRestaurantPayout(order.total),
+    scenario: "instant_connect_split",
+    ledgerStatus: "transferred",
+  };
+}
 
 export type CheckoutSyncResult = {
   ok: boolean;
@@ -178,9 +209,7 @@ export async function syncPaidOrderFromStripeCheckout(
   }
   await recomputePopularItems();
 
-  const scenario =
-    updated.paymentMode === "stripe_connect_split" ? "instant_connect_split" : "platform_collect_then_later_payout";
-  const ledgerStatus = updated.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
+  const ledger = ledgerForPaidOrder(updated);
 
   await PayoutLedger.updateOne(
     { order: updated._id },
@@ -189,11 +218,11 @@ export async function syncPaidOrderFromStripeCheckout(
         restaurant: updated.restaurant,
         order: updated._id,
         totalCollected: updated.total,
-        commissionAmount: updated.commissionAmount,
-        restaurantPayoutAmount: updated.restaurantPayoutAmount,
-        status: ledgerStatus,
+        commissionAmount: ledger.commissionAmount,
+        restaurantPayoutAmount: ledger.restaurantPayoutAmount,
+        status: ledger.ledgerStatus,
         stripeTransferId: "",
-        payoutScenario: scenario,
+        payoutScenario: ledger.scenario,
       },
     },
     { upsert: true }
@@ -256,9 +285,7 @@ export async function syncPaidOrderFromPaymentIntent(pi: Stripe.PaymentIntent): 
   }
   await recomputePopularItems();
 
-  const scenario =
-    updated.paymentMode === "stripe_connect_split" ? "instant_connect_split" : "platform_collect_then_later_payout";
-  const ledgerStatus = updated.paymentMode === "stripe_connect_split" ? "transferred" : "pending";
+  const ledger = ledgerForPaidOrder(updated);
 
   await PayoutLedger.updateOne(
     { order: updated._id },
@@ -267,11 +294,11 @@ export async function syncPaidOrderFromPaymentIntent(pi: Stripe.PaymentIntent): 
         restaurant: updated.restaurant,
         order: updated._id,
         totalCollected: updated.total,
-        commissionAmount: updated.commissionAmount,
-        restaurantPayoutAmount: updated.restaurantPayoutAmount,
-        status: ledgerStatus,
+        commissionAmount: ledger.commissionAmount,
+        restaurantPayoutAmount: ledger.restaurantPayoutAmount,
+        status: ledger.ledgerStatus,
         stripeTransferId: "",
-        payoutScenario: scenario,
+        payoutScenario: ledger.scenario,
       },
     },
     { upsert: true }

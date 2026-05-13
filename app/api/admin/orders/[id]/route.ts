@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sanitizeOrderForAdminClient } from "@/lib/admin-api-sanitize";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
@@ -26,7 +27,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ order });
+    return NextResponse.json({ order: sanitizeOrderForAdminClient(order as unknown as Record<string, unknown>) });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

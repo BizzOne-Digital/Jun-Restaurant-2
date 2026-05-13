@@ -10,10 +10,7 @@ type OrderRow = {
   orderNumber: string;
   orderStatus: string;
   paymentStatus: string;
-  paymentMode: string;
   total: number;
-  commissionAmount: number;
-  restaurantPayoutAmount: number;
   createdAt: string;
   /** Present on Mongoose timestamps — updates when payment/order changes; used for new-row chime heuristics. */
   updatedAt?: string;

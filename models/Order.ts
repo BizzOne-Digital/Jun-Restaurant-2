@@ -59,6 +59,7 @@ const orderSchema = new Schema(
     total: { type: Number, required: true },
     commissionAmount: { type: Number, required: true },
     restaurantPayoutAmount: { type: Number, required: true },
+    /** Recorded on the order for history; new checkouts always use server hardcoded split (lib/payment-config.ts). */
     paymentMode: {
       type: String,
       enum: ["platform_collect", "stripe_connect_split"],
@@ -66,6 +67,7 @@ const orderSchema = new Schema(
     },
     stripeCheckoutSessionId: { type: String, default: "" },
     stripePaymentIntentId: { type: String, default: "" },
+    /** Destination Connect account at time of checkout (legacy rows may differ). */
     stripeConnectedAccountId: { type: String, default: "" },
     paymentStatus: {
       type: String,

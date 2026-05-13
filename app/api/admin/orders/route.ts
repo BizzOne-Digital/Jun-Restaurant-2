@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sanitizeOrderForAdminClient } from "@/lib/admin-api-sanitize";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
@@ -37,7 +38,9 @@ export async function GET(req: Request) {
       .populate("customer", "name email phone")
       .lean();
 
-    return NextResponse.json({ orders });
+    const sanitized = orders.map((o) => sanitizeOrderForAdminClient(o as unknown as Record<string, unknown>));
+
+    return NextResponse.json({ orders: sanitized });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to load orders" }, { status: 500 });

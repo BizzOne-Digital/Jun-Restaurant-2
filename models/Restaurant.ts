@@ -18,17 +18,21 @@ const restaurantSchema = new Schema(
     phone: { type: String, required: true },
     logoUrl: { type: String, default: "/awok-logo.png" },
     heroImageUrl: { type: String, default: "" },
+    /** Legacy / compatibility only — checkout uses hardcoded Connect settings (see lib/payment-config.ts). */
     stripeConnectedAccountId: { type: String, default: "" },
-    /** Optional alias for stripeConnectedAccountId (same Stripe Connect acct_ value). */
+    /** Legacy / compatibility only — not used for checkout routing. */
     stripeAccountId: { type: String, default: "" },
+    /** Legacy / compatibility only — not exposed in admin. */
     hasSubmittedVoidCheckAndId: { type: Boolean, default: false },
+    /** Legacy / compatibility only — not used to control checkout split. */
     paymentMode: {
       type: String,
       enum: ["platform_collect", "stripe_connect_split"],
       default: "platform_collect",
     },
+    /** Legacy / compatibility only — commission is hardcoded server-side for new checkouts. */
     commissionPercentage: { type: Number, default: 10 },
-    /** Optional platform fee as decimal (e.g. 0.12 = 12%). Overrides commissionPercentage for Connect fees when set. */
+    /** Legacy / compatibility only — not used for checkout routing. */
     commissionRate: { type: Number },
     openingHours: { type: [openingSlotSchema], default: [] },
     isAcceptingOrders: { type: Boolean, default: true },

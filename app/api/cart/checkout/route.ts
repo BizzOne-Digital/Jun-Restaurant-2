@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth-options";
-import { commissionFromTotalCents, DEFAULT_TAX_RATE, restaurantPayoutFromTotalCents } from "@/lib/constants";
+import { DEFAULT_TAX_RATE } from "@/lib/constants";
 import { connectDB } from "@/lib/mongodb";
 import { generateOrderNumber } from "@/lib/order-number";
-import Stripe from "stripe";
+import {
+  AWOK_STRIPE_CONNECTED_ACCOUNT_ID,
+  calculatePlatformFee,
+  calculateRestaurantPayout,
+  PAYMENT_MODE,
+} from "@/lib/payment-config";
 import { getStripe } from "@/lib/stripe";
 import { lineSubtotalCents, bogoPayableQuantity } from "@/lib/pricing";
 import {
@@ -19,12 +24,6 @@ import { checkoutBodySchema } from "@/lib/validators/checkout";
 import { getPublicSiteUrlFromRequest } from "@/lib/get-public-site-url";
 import { traceOrderEmail } from "@/lib/email/order-email-trace";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
-import {
-  A_WOK_SLUG,
-  connectPlatformFeeFraction,
-  resolveStripeConnectDestinationId,
-  shouldUseStripeConnectDestinationCharge,
-} from "@/lib/stripe-connect-checkout";
 import "@/models/Category";
 import { MenuItem } from "@/models/MenuItem";
 import { Order } from "@/models/Order";
@@ -32,6 +31,8 @@ import { Restaurant } from "@/models/Restaurant";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
+
+const A_WOK_SLUG = "a-wok";
 
 export async function POST(req: Request) {
   try {
@@ -124,25 +125,10 @@ export async function POST(req: Request) {
     // Integer USD cents: subtotal + tax + delivery + tip (final payable amount).
     const totalAmountInCents = total;
 
-    const destinationAccountId = resolveStripeConnectDestinationId(restaurant);
-    const useDestinationCharge = shouldUseStripeConnectDestinationCharge(restaurant, destinationAccountId);
-
-    if (restaurant.paymentMode === "stripe_connect_split" && !destinationAccountId) {
-      return NextResponse.json(
-        { error: "Stripe Connect is not fully configured for this restaurant" },
-        { status: 400 }
-      );
-    }
-
-    const platformFeeFraction = connectPlatformFeeFraction(restaurant);
-    const paymentMode = useDestinationCharge ? "stripe_connect_split" : "platform_collect";
-
-    const commissionAmount = useDestinationCharge
-      ? Math.round(totalAmountInCents * platformFeeFraction)
-      : commissionFromTotalCents(totalAmountInCents);
-    const restaurantPayoutAmount = useDestinationCharge
-      ? totalAmountInCents - commissionAmount
-      : restaurantPayoutFromTotalCents(totalAmountInCents);
+    // Stripe split settings are intentionally hardcoded server-side (see lib/payment-config.ts).
+    const destinationAccountId = AWOK_STRIPE_CONNECTED_ACCOUNT_ID;
+    const commissionAmount = calculatePlatformFee(totalAmountInCents);
+    const restaurantPayoutAmount = calculateRestaurantPayout(totalAmountInCents);
 
     const orderNumber = generateOrderNumber();
 
@@ -165,14 +151,14 @@ export async function POST(req: Request) {
       total,
       commissionAmount,
       restaurantPayoutAmount,
-      paymentMode,
+      paymentMode: PAYMENT_MODE,
       paymentStatus: "pending",
       orderStatus: "new",
       fulfillmentType: body.fulfillmentType,
       pickupTime: body.pickupTime ?? "",
       deliveryAddress: null,
       customerNotes: body.customerNotes ?? "",
-      stripeConnectedAccountId: useDestinationCharge ? destinationAccountId : "",
+      stripeConnectedAccountId: destinationAccountId,
     });
 
     const stripe = getStripe();
@@ -246,8 +232,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const customerEmail =
-      session?.user?.email ?? body.guestInfo?.email ?? undefined;
+    const customerEmail = session?.user?.email ?? body.guestInfo?.email ?? undefined;
 
     const metadata: Record<string, string> = {
       orderId: order._id.toString(),
@@ -259,14 +244,12 @@ export async function POST(req: Request) {
       customer_email: customerEmail ?? "",
       customer_name: customerName,
       customerId: session?.user?.id ?? "guest",
-      paymentMode,
+      paymentMode: PAYMENT_MODE,
+      connectedAccountId: destinationAccountId,
     };
 
-    if (useDestinationCharge) {
-      metadata.connectedAccountId = destinationAccountId;
-      if (restaurant.slug === A_WOK_SLUG) {
-        metadata.restaurant_name = "A WOK";
-      }
+    if (restaurant.slug === A_WOK_SLUG) {
+      metadata.restaurant_name = "A WOK";
     }
 
     const paymentIntentDescription = `${restaurant.name} online order · #${orderNumber}`;
@@ -279,6 +262,10 @@ export async function POST(req: Request) {
       orderNumber,
     });
 
+    // Destination charge: application_fee_amount is retained by the platform (commission);
+    // Stripe transfers the remaining balance to the connected account (Connect).
+    // Stripe split settings are intentionally hardcoded server-side so restaurant/admin users
+    // cannot modify commission or destination account from the admin portal.
     const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
       success_url: successUrl,
@@ -287,73 +274,19 @@ export async function POST(req: Request) {
       metadata,
       client_reference_id: order._id.toString(),
       customer_email: customerEmail,
-    };
-
-    if (useDestinationCharge) {
-      // Destination charge: application_fee_amount is retained by the platform (commission);
-      // Stripe transfers the remaining balance to the connected account (Connect).
-      sessionParams.payment_intent_data = {
+      payment_intent_data: {
         application_fee_amount: commissionAmount,
         transfer_data: {
           destination: destinationAccountId,
         },
         description: paymentIntentDescription,
         metadata: { ...metadata },
-      };
-    } else {
-      sessionParams.payment_intent_data = {
-        description: paymentIntentDescription,
-        metadata: { ...metadata },
-      };
-    }
+      },
+    };
 
     console.info("[checkout] creating Stripe session order=", orderNumber, "slug=", slug, "success_url=", successUrl);
 
-    let checkoutSession: Stripe.Checkout.Session;
-    try {
-      checkoutSession = await stripe.checkout.sessions.create(sessionParams);
-    } catch (createErr) {
-      if (
-        createErr instanceof Stripe.errors.StripeError &&
-        createErr.code === "insufficient_capabilities_for_transfer" &&
-        useDestinationCharge
-      ) {
-        console.warn(
-          "[checkout] Connect destination rejected (transfers not active); retrying as platform collect",
-          { slug, orderNumber, destinationAccountId }
-        );
-        const fallbackCommission = commissionFromTotalCents(totalAmountInCents);
-        const fallbackPayout = restaurantPayoutFromTotalCents(totalAmountInCents);
-        order.paymentMode = "platform_collect";
-        order.commissionAmount = fallbackCommission;
-        order.restaurantPayoutAmount = fallbackPayout;
-        order.stripeConnectedAccountId = "";
-        await order.save();
-
-        const metadataPlatform: Record<string, string> = {
-          ...metadata,
-          paymentMode: "platform_collect",
-          restaurant_name: String(restaurant.name),
-        };
-        delete metadataPlatform.connectedAccountId;
-
-        checkoutSession = await stripe.checkout.sessions.create({
-          mode: "payment",
-          success_url: successUrl,
-          cancel_url: `${siteUrl}/checkout?cancelled=1`,
-          line_items: lineItems,
-          metadata: metadataPlatform,
-          client_reference_id: order._id.toString(),
-          customer_email: customerEmail,
-          payment_intent_data: {
-            description: paymentIntentDescription,
-            metadata: { ...metadataPlatform },
-          },
-        });
-      } else {
-        throw createErr;
-      }
-    }
+    const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
 
     order.stripeCheckoutSessionId = checkoutSession.id;
     await order.save();

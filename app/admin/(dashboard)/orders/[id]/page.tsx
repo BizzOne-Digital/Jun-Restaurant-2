@@ -23,7 +23,6 @@ type OrderDetail = {
   orderNumber: string;
   orderStatus: string;
   paymentStatus: string;
-  paymentMode: string;
   fulfillmentType: string;
   pickupTime?: string;
   subtotal: number;
@@ -31,8 +30,6 @@ type OrderDetail = {
   deliveryFee?: number;
   tip?: number;
   total: number;
-  commissionAmount: number;
-  restaurantPayoutAmount: number;
   stripeCheckoutSessionId?: string;
   stripePaymentIntentId?: string;
   customerNotes?: string;
@@ -163,10 +160,6 @@ export default function AdminOrderDetailPage() {
               <dd className="font-medium capitalize text-awok-cream">{order.paymentStatus}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-awok-muted">Mode</dt>
-              <dd className="text-awok-cream">{order.paymentMode}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
               <dt className="text-awok-muted">Fulfillment</dt>
               <dd className="capitalize text-awok-cream">{order.fulfillmentType}</dd>
             </div>
@@ -247,14 +240,6 @@ export default function AdminOrderDetailPage() {
             <span>Total</span>
             <span>{formatCents(order.total)}</span>
           </div>
-          <div className="flex justify-between text-xs text-awok-muted">
-            <span>Commission</span>
-            <span>{formatCents(order.commissionAmount)}</span>
-          </div>
-          <div className="flex justify-between text-xs text-awok-gold">
-            <span>Restaurant payout</span>
-            <span>{formatCents(order.restaurantPayoutAmount)}</span>
-          </div>
         </div>
       </div>
 
@@ -277,7 +262,7 @@ export default function AdminOrderDetailPage() {
       )}
 
       <div className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Stripe &amp; email</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-awok-gold">Payment &amp; email</h2>
         <dl className="mt-4 space-y-2 font-mono text-xs text-awok-muted break-all">
           {order.stripeCheckoutSessionId ? (
             <div>

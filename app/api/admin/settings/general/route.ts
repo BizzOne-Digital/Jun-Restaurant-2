@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { sanitizeRestaurantForAdminClient, stripSensitiveRestaurantFieldsFromBody } from "@/lib/admin-api-sanitize";
 import { requireAdmin } from "@/lib/require-admin";
 import { connectDB } from "@/lib/mongodb";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
@@ -28,7 +29,7 @@ export async function PATCH(req: Request) {
   const { error, session } = await requireAdmin();
   if (error || !session) return error!;
 
-  const json = await req.json();
+  const json = stripSensitiveRestaurantFieldsFromBody((await req.json()) as Record<string, unknown>);
   const parsed = patchSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -41,7 +42,9 @@ export async function PATCH(req: Request) {
       new: true,
     }).lean();
     if (!restaurant) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json({ restaurant });
+    return NextResponse.json({
+      restaurant: sanitizeRestaurantForAdminClient(restaurant as unknown as Record<string, unknown>),
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });

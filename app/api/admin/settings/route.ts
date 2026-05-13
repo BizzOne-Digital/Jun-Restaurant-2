@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
+import { sanitizeRestaurantForAdminClient } from "@/lib/admin-api-sanitize";
 import { connectDB } from "@/lib/mongodb";
 import { resolveRestaurantSlugFromRequest } from "@/lib/restaurant-resolve";
 import { Restaurant } from "@/models/Restaurant";
@@ -19,7 +20,10 @@ export async function GET(req: Request) {
     const siteSetting =
       (await SiteSetting.findOne({ key: "default" }).lean()) ??
       (await SiteSetting.findOne().sort({ updatedAt: -1 }).lean());
-    return NextResponse.json({ restaurant, siteSetting: siteSetting ?? null });
+    return NextResponse.json({
+      restaurant: sanitizeRestaurantForAdminClient(restaurant as unknown as Record<string, unknown>),
+      siteSetting: siteSetting ?? null,
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
