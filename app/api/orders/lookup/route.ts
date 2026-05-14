@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
+import { AWOK_STRIPE_CONNECTED_ACCOUNT_ID } from "@/lib/payment-config";
 import { Order } from "@/models/Order";
-import { syncPaidOrderFromStripeCheckout } from "@/lib/stripe-order-payment-sync";
+import { syncPaidOrderFromStripeCheckoutDirect } from "@/lib/stripe-order-payment-sync";
 import { traceOrderEmail } from "@/lib/email/order-email-trace";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,9 @@ export async function GET(req: Request) {
         sessionIdPrefix: sessionId.slice(0, 14),
       });
       console.info("[orders/lookup] payment still pending — syncing with Stripe", order.orderNumber);
-      const sync = await syncPaidOrderFromStripeCheckout(sessionId);
+      // Sessions are created on the connected account (direct charge), so we must pass
+      // the stripeAccount context when retrieving by session ID.
+      const sync = await syncPaidOrderFromStripeCheckoutDirect(sessionId, AWOK_STRIPE_CONNECTED_ACCOUNT_ID);
       if (!sync.ok) {
         console.warn("[orders/lookup] Stripe sync incomplete", sync.error);
       } else if (sync.paymentStatus === "paid") {

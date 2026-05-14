@@ -262,8 +262,13 @@ export async function POST(req: Request) {
       orderNumber,
     });
 
-    // Destination charge: application_fee_amount is retained by the platform (commission);
-    // Stripe transfers the remaining balance to the connected account (Connect).
+    // Direct charge on the connected account: the Checkout Session is created in the context
+    // of the connected account (stripeAccount header). The platform retains application_fee_amount
+    // as its 12% commission; the remaining 88% stays on the connected account automatically.
+    // This matches the client's other working restaurant accounts in Stripe Dashboard:
+    //   - All Activity shows only the collected application fee (no separate Transfer row)
+    //   - Collected fees appear in the connected account's settlement currency (CAD)
+    //   - Settlement merchant shows the restaurant name, not the platform
     // Stripe split settings are intentionally hardcoded server-side so restaurant/admin users
     // cannot modify commission or destination account from the admin portal.
     const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
@@ -276,9 +281,6 @@ export async function POST(req: Request) {
       customer_email: customerEmail,
       payment_intent_data: {
         application_fee_amount: commissionAmount,
-        transfer_data: {
-          destination: destinationAccountId,
-        },
         description: paymentIntentDescription,
         metadata: { ...metadata },
       },
@@ -286,7 +288,10 @@ export async function POST(req: Request) {
 
     console.info("[checkout] creating Stripe session order=", orderNumber, "slug=", slug, "success_url=", successUrl);
 
-    const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
+    // Pass stripeAccount to create the session as a direct charge on the connected account.
+    const checkoutSession = await stripe.checkout.sessions.create(sessionParams, {
+      stripeAccount: destinationAccountId,
+    });
 
     order.stripeCheckoutSessionId = checkoutSession.id;
     await order.save();

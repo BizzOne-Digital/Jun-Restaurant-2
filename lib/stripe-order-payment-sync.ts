@@ -50,10 +50,16 @@ export type CheckoutSyncResult = {
 
 async function retrieveCheckoutSession(
   stripe: ReturnType<typeof getStripe>,
-  sessionId: string
+  sessionId: string,
+  stripeAccount?: string
 ): Promise<Stripe.Checkout.Session | null> {
   try {
-    return await stripe.checkout.sessions.retrieve(sessionId, { expand: ["payment_intent"] });
+    const options = stripeAccount ? { stripeAccount } : undefined;
+    return await stripe.checkout.sessions.retrieve(
+      sessionId,
+      { expand: ["payment_intent"] },
+      options
+    );
   } catch (e) {
     console.error("[stripe] checkout.sessions.retrieve failed", sessionId, e);
     return null;
@@ -73,11 +79,29 @@ function paymentIntentId(session: Stripe.Checkout.Session): string {
 export async function syncPaidOrderFromStripeCheckout(
   sessionOrId: string | Stripe.Checkout.Session
 ): Promise<CheckoutSyncResult> {
+  return _syncPaidOrderFromCheckout(sessionOrId, undefined);
+}
+
+/**
+ * Same as syncPaidOrderFromStripeCheckout but for direct charges on a connected account.
+ * When retrieving the session by ID (polling path), the stripeAccount context is required.
+ */
+export async function syncPaidOrderFromStripeCheckoutDirect(
+  sessionOrId: string | Stripe.Checkout.Session,
+  stripeAccount: string
+): Promise<CheckoutSyncResult> {
+  return _syncPaidOrderFromCheckout(sessionOrId, stripeAccount);
+}
+
+async function _syncPaidOrderFromCheckout(
+  sessionOrId: string | Stripe.Checkout.Session,
+  stripeAccount: string | undefined
+): Promise<CheckoutSyncResult> {
   await connectDB();
   const stripe = getStripe();
   const session =
     typeof sessionOrId === "string"
-      ? await retrieveCheckoutSession(stripe, sessionOrId)
+      ? await retrieveCheckoutSession(stripe, sessionOrId, stripeAccount)
       : sessionOrId;
 
   if (!session || !session.id) {
