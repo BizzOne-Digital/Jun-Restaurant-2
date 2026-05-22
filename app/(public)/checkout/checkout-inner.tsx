@@ -36,6 +36,7 @@ function checkoutApiErrorMessage(data: unknown): string {
 }
 
 type TipPreset = "none" | "pct15" | "pct20" | "pct25" | "custom";
+type PickupType = "ASAP" | "SCHEDULED";
 
 function parseCustomTipCents(raw: string): number {
   const cleaned = raw.replace(/[^0-9.]/g, "");
@@ -44,13 +45,40 @@ function parseCustomTipCents(raw: string): number {
   return Math.min(TIP_MAX_CENTS, Math.round(n * 100));
 }
 
+/** Returns the minimum datetime-local value string (30 min from now, rounded to next 15 min). */
+function minPickupDatetimeLocal(): string {
+  const now = new Date();
+  const earliest = new Date(now.getTime() + 30 * 60 * 1000);
+  const rounded = Math.ceil(earliest.getMinutes() / 15) * 15;
+  earliest.setMinutes(rounded, 0, 0);
+  // Format as "YYYY-MM-DDTHH:MM" for datetime-local
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${earliest.getFullYear()}-${pad(earliest.getMonth() + 1)}-${pad(earliest.getDate())}T${pad(earliest.getHours())}:${pad(earliest.getMinutes())}`;
+}
+
+/** Format a datetime-local value string into a human-readable pickup time for storage. */
+function formatPickupTimeForStorage(datetimeLocal: string): string {
+  if (!datetimeLocal) return "";
+  const d = new Date(datetimeLocal);
+  if (isNaN(d.getTime())) return datetimeLocal;
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default function CheckoutInner() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { lines, clear } = useCart();
   const [tipPreset, setTipPreset] = useState<TipPreset>("none");
   const [customTipDollars, setCustomTipDollars] = useState("");
-  const [pickupTime, setPickupTime] = useState("");
+  const [pickupType, setPickupType] = useState<PickupType>("ASAP");
+  const [pickupDatetime, setPickupDatetime] = useState(""); // datetime-local value e.g. "2025-06-01T14:30"
   const [customerNotes, setCustomerNotes] = useState(searchParams.get("notes") || "");
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -92,6 +120,11 @@ export default function CheckoutInner() {
       guestInfo = { name: guestName.trim(), email: guestEmail.trim(), phone: guestPhone.trim() };
     }
 
+    if (pickupType === "SCHEDULED" && !pickupDatetime.trim()) {
+      toast.error("Please select a pickup time");
+      return;
+    }
+
     const body = {
       items: lines.map((l) => ({
         menuItemId: l.menuItemId,
@@ -100,7 +133,8 @@ export default function CheckoutInner() {
         selectedOptions: l.selectedOptions,
       })),
       fulfillmentType: "pickup" as const,
-      pickupTime,
+      pickupType,
+      pickupTime: pickupType === "SCHEDULED" ? formatPickupTimeForStorage(pickupDatetime) : undefined,
       customerNotes,
       tipCents,
       guestInfo,
@@ -182,19 +216,74 @@ export default function CheckoutInner() {
           </div>
         )}
 
+        {/* ── Pickup timing ── */}
         <div className="glass-panel space-y-4 rounded-2xl p-4 sm:p-6">
-          <h2 className="font-semibold text-awok-cream">Pickup</h2>
-          <p className="text-xs text-awok-muted">Orders are for in-store pickup only — we do not deliver.</p>
-          <input
-            className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
-            placeholder="Preferred pickup time (optional)"
-            value={pickupTime}
-            onChange={(e) => setPickupTime(e.target.value)}
-          />
+          <h2 className="font-semibold text-awok-cream">Pickup time</h2>
+          <p className="text-xs text-awok-muted">Choose when you&apos;d like to pick up your order.</p>
+
+          {/* ASAP / SELECT TIME option cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setPickupType("ASAP")}
+              aria-pressed={pickupType === "ASAP"}
+              className={`flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 text-center transition touch-manipulation ${
+                pickupType === "ASAP"
+                  ? "border-awok-gold bg-awok-gold/10"
+                  : "border-white/10 bg-black/20 hover:border-white/25"
+              }`}
+            >
+              <span className="text-2xl" aria-hidden="true">⚡</span>
+              <span className={`text-xs font-bold uppercase tracking-widest ${pickupType === "ASAP" ? "text-awok-gold" : "text-awok-cream"}`}>
+                Pick Up ASAP
+              </span>
+              <span className="text-[11px] text-awok-muted">Ready as soon as possible</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPickupType("SCHEDULED")}
+              aria-pressed={pickupType === "SCHEDULED"}
+              className={`flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 text-center transition touch-manipulation ${
+                pickupType === "SCHEDULED"
+                  ? "border-blue-400 bg-blue-500/10"
+                  : "border-white/10 bg-black/20 hover:border-white/25"
+              }`}
+            >
+              <span className="text-2xl" aria-hidden="true">🕐</span>
+              <span className={`text-xs font-bold uppercase tracking-widest ${pickupType === "SCHEDULED" ? "text-blue-300" : "text-awok-cream"}`}>
+                Select Time (Later)
+              </span>
+              <span className="text-[11px] text-awok-muted">Schedule for later</span>
+            </button>
+          </div>
+
+          {/* Datetime picker — only shown when SCHEDULED */}
+          {pickupType === "SCHEDULED" && (
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-awok-muted" htmlFor="pickup-datetime">
+                Pickup Date &amp; Time
+              </label>
+              <input
+                id="pickup-datetime"
+                type="datetime-local"
+                value={pickupDatetime}
+                min={minPickupDatetimeLocal()}
+                onChange={(e) => setPickupDatetime(e.target.value)}
+                className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream [color-scheme:dark] sm:text-sm"
+              />
+              {!pickupDatetime && (
+                <p className="text-[11px] text-awok-ember2" role="alert">
+                  Please select a pickup time to continue.
+                </p>
+              )}
+            </div>
+          )}
+
           <textarea
             rows={3}
             className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-awok-cream sm:text-sm"
-            placeholder="Special instructions"
+            placeholder="Special instructions (optional)"
             value={customerNotes}
             onChange={(e) => setCustomerNotes(e.target.value)}
           />

@@ -76,6 +76,18 @@ export function buildAdminNewOrderHtml(
           order._id.toString()
         )}</p>
         <p style="margin:0 0 12px;"><strong>Total</strong> ${formatCents(order.total)}</p>
+        <p style="margin:0 0 12px;">
+          <strong>Pickup</strong>
+          ${
+            order.pickupType === "SCHEDULED" && order.pickupTime?.trim()
+              ? `Scheduled — ${escapeHtml(order.pickupTime.trim())}`
+              : order.pickupType === "ASAP"
+              ? "ASAP"
+              : order.pickupTime?.trim()
+              ? escapeHtml(order.pickupTime.trim())
+              : "ASAP"
+          }
+        </p>
         ${contactBlock}
         <p style="margin:0 0 12px;font-size:13px;color:#bbb;">
           <strong>Stripe Checkout session</strong><br/><code style="word-break:break-all;">${escapeHtml(ctx.stripeSessionId)}</code>

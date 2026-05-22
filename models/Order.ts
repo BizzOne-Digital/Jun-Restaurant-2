@@ -84,6 +84,17 @@ const orderSchema = new Schema(
       enum: ["pickup", "delivery"],
       required: true,
     },
+    /**
+     * For pickup orders: "ASAP" = customer wants it as soon as ready,
+     * "SCHEDULED" = customer selected a specific time (stored in pickupTime).
+     * Null/undefined on legacy orders and delivery orders.
+     */
+    pickupType: {
+      type: String,
+      enum: ["ASAP", "SCHEDULED"],
+      default: null,
+    },
+    /** Scheduled pickup time string (only meaningful when pickupType === "SCHEDULED"). */
     pickupTime: { type: String, default: "" },
     deliveryAddress: { type: deliveryAddressSchema, default: null },
     customerNotes: { type: String, default: "" },

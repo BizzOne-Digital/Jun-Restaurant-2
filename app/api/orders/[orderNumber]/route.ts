@@ -22,6 +22,7 @@ export async function GET(_req: Request, { params }: { params: { orderNumber: st
       paymentStatus: order.paymentStatus,
       orderStatus: order.orderStatus,
       fulfillmentType: order.fulfillmentType,
+      pickupType: (order as unknown as { pickupType?: string | null }).pickupType ?? null,
       pickupTime: order.pickupTime,
       deliveryAddress: order.deliveryAddress,
       items: order.items,

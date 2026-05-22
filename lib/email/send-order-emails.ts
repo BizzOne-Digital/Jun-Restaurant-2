@@ -140,6 +140,7 @@ export async function sendPaidOrderEmails(
       _id: order._id,
       orderNumber: order.orderNumber,
       fulfillmentType: order.fulfillmentType,
+      pickupType: (order as unknown as { pickupType?: string | null }).pickupType ?? null,
       pickupTime: order.pickupTime,
       subtotal: order.subtotal,
       tax: order.tax,

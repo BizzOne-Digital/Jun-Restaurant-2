@@ -24,6 +24,7 @@ type OrderDetail = {
   orderStatus: string;
   paymentStatus: string;
   fulfillmentType: string;
+  pickupType?: string | null;
   pickupTime?: string;
   subtotal: number;
   tax: number;
@@ -163,12 +164,20 @@ export default function AdminOrderDetailPage() {
               <dt className="text-awok-muted">Fulfillment</dt>
               <dd className="capitalize text-awok-cream">{order.fulfillmentType}</dd>
             </div>
-            {order.pickupTime ? (
+            {order.fulfillmentType === "pickup" && (
               <div className="flex justify-between gap-4">
-                <dt className="text-awok-muted">Pickup time</dt>
-                <dd className="text-awok-cream">{order.pickupTime}</dd>
+                <dt className="text-awok-muted">Pickup</dt>
+                <dd className="text-awok-cream">
+                  {order.pickupType === "SCHEDULED" && order.pickupTime
+                    ? order.pickupTime
+                    : order.pickupType === "ASAP"
+                    ? "ASAP"
+                    : order.pickupTime
+                    ? order.pickupTime
+                    : "ASAP"}
+                </dd>
               </div>
-            ) : null}
+            )}
           </dl>
         </div>
 

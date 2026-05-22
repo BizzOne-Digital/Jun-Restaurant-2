@@ -19,6 +19,16 @@ export default function PrintOrderPage() {
   if (!order) return <p className="p-8 text-sm">Loading ticket…</p>;
 
   const items = (order.items as { name: string; quantity: number; lineTotalCents: number; notes?: string }[]) ?? [];
+  const pickupType = order.pickupType as string | null | undefined;
+  const pickupTime = order.pickupTime as string | undefined;
+  const pickupLabel =
+    pickupType === "SCHEDULED" && pickupTime
+      ? `Scheduled: ${pickupTime}`
+      : pickupType === "ASAP"
+      ? "ASAP"
+      : pickupTime
+      ? pickupTime
+      : "ASAP";
 
   return (
     <div className="max-w-md p-6 text-black">
@@ -26,6 +36,7 @@ export default function PrintOrderPage() {
       <p className="text-sm">1025 A St, Hayward, CA 94541</p>
       <p className="mt-4 font-mono text-lg font-bold">{order.orderNumber as string}</p>
       <p className="text-xs capitalize">{(order.orderStatus as string) ?? ""}</p>
+      <p className="text-xs font-semibold">Pickup: {pickupLabel}</p>
       <hr className="my-4" />
       <ul className="space-y-2 text-sm">
         {items.map((it, i) => (

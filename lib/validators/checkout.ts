@@ -26,10 +26,25 @@ export const checkoutBodySchema = z
       )
       .min(1),
     fulfillmentType: z.literal("pickup"),
+    /**
+     * "ASAP" — customer wants the order as soon as it's ready.
+     * "SCHEDULED" — customer selected a specific pickup time (pickupTime must be provided).
+     */
+    pickupType: z.enum(["ASAP", "SCHEDULED"]),
+    /** Required when pickupType is "SCHEDULED"; ignored for "ASAP". */
     pickupTime: z.string().max(120).optional(),
     customerNotes: z.string().max(2000).optional(),
     tipCents: z.number().int().min(0).max(500_00),
     guestInfo: guestInfoSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.pickupType === "SCHEDULED" && !data.pickupTime?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pickupTime"],
+        message: "Please select a pickup time.",
+      });
+    }
   });
 
 export type CheckoutBody = z.infer<typeof checkoutBodySchema>;

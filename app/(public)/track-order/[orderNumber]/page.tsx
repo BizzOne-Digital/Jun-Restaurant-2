@@ -13,6 +13,8 @@ export default function TrackOrderPage() {
     orderNumber: string;
     orderStatus: string;
     fulfillmentType: string;
+    pickupType?: string | null;
+    pickupTime?: string;
     total: number;
   } | null>(null);
 
@@ -69,7 +71,12 @@ export default function TrackOrderPage() {
             })}
           </div>
           <p className="mt-8 text-center text-sm text-awok-muted">
-            {data.fulfillmentType === "pickup" ? "Pickup" : "Delivery"} · Total charged:{" "}
+            {data.fulfillmentType === "pickup"
+              ? data.pickupType === "SCHEDULED" && data.pickupTime
+                ? `Pickup scheduled: ${data.pickupTime}`
+                : "Pickup: ASAP"
+              : "Delivery"}{" "}
+            · Total charged:{" "}
             <span className="font-semibold text-awok-cream">
               {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(data.total / 100)}
             </span>

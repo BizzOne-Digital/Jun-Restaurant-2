@@ -15,6 +15,7 @@ export type OrderPayloadForConfirmation = {
   _id: { toString(): string };
   orderNumber: string;
   fulfillmentType: "pickup" | "delivery";
+  pickupType?: string | null;
   pickupTime?: string;
   subtotal: number;
   tax: number;
@@ -54,8 +55,14 @@ function servingLabel(order: OrderPayloadForConfirmation): string {
 function pickupEstimate(order: OrderPayloadForConfirmation, ctx: OrderConfirmationCtx): string {
   const mins = ctx.pickupPrepareMinutes ?? 20;
   const base = formatPickupPrepareWindow(mins);
-  if (order.pickupTime?.trim()) return `${base} — requested ${order.pickupTime.trim()}`;
-  return base;
+  if (order.pickupType === "SCHEDULED" && order.pickupTime?.trim()) {
+    return `Scheduled for ${order.pickupTime.trim()}`;
+  }
+  if (order.pickupType === "ASAP" || !order.pickupTime?.trim()) {
+    return `ASAP — ${base}`;
+  }
+  // Legacy: pickupTime set but no pickupType
+  return `${base} — requested ${order.pickupTime.trim()}`;
 }
 
 function lineRowsHtml(order: OrderPayloadForConfirmation): string {
